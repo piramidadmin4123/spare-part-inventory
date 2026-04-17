@@ -73,17 +73,31 @@ excelRouter.post(
         const allKeywords = sheetSuffix.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [];
         const englishKeyword = allKeywords.join(' ').trim() || null;
         if (englishKeyword) {
-          // Try to match by full suffix first, then each word token
-          const tokens = [englishKeyword, ...allKeywords];
+          // Thai qualifiers → English suffix for disambiguating e.g. REIGNWOOD_OLD vs REIGNWOOD_CUR
+          const thaiQualifiers: [string, string][] = [
+            ['เก่า', 'OLD'],
+            ['ปัจจุบัน', 'CUR'],
+          ];
+          const qualifier =
+            thaiQualifiers.find(([thai]) => sheetSuffix.includes(thai))?.[1] ?? null;
+
+          // Build token priority list: qualified version first, then plain tokens
+          const tokens: string[] = [];
+          if (qualifier && allKeywords.length > 0) {
+            tokens.push(`${allKeywords[0]}_${qualifier}`); // e.g. "REIGNWOOD_OLD"
+          }
+          for (const w of allKeywords) {
+            tokens.push(w.toLowerCase() === 'all' ? 'BKK' : w);
+          }
+
           let matched = null;
           for (const token of tokens) {
-            const keyword = token.toLowerCase() === 'all' ? 'BKK' : token;
             matched = await prisma.site.findFirst({
               where: {
                 OR: [
-                  { code: { equals: keyword, mode: 'insensitive' } },
-                  { code: { contains: keyword, mode: 'insensitive' } },
-                  { name: { contains: keyword, mode: 'insensitive' } },
+                  { code: { equals: token, mode: 'insensitive' } },
+                  { code: { contains: token, mode: 'insensitive' } },
+                  { name: { contains: token, mode: 'insensitive' } },
                 ],
               },
             });
