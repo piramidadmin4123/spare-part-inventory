@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  TECHNICIAN
+  VIEWER
+}
+
+enum ItemStatus {
+  IN_SERVICE      // กำลังใช้งานที่ site
+  BORROWED        // กำลังถูกยืม
+  IN_STOCK        // เก็บในห้อง service
+  MAINTENANCE     // ส่งซ่อม
+  LOST            // หาย
+  DECOMMISSIONED  // ปลดระวาง
+}
+
+enum BorrowStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+// ── Models ────────────────────────────────────────────────────────────────
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  name       String
+  role       UserRole @default(TECHNICIAN)
+  phone      String?
+  lineUserId String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  borrowRequests  BorrowTransaction[] @relation("Borrower")
+  approvedBorrows BorrowTransaction[] @relation("Approver")
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+model Site {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  address     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  spareParts       SparePart[]
+  additionalOrders AdditionalOrder[]
+
+  @@map("sites")
+}
+
+model EquipmentType {
+  id       String @id @default(uuid())
+  code     String @unique
+  name     String
+  category String
+  icon     String?
+
+  spareParts SparePart[]
+
+  @@map("equipment_types")
+}
+
+model Brand {
+  id   String @id @default(uuid())
+  name String @unique
+
+  spareParts       SparePart[]
+  additionalOrders AdditionalOrder[]
+
+  @@map("brands")
+}
+
+model SparePart {
+  id              String        @id @default(uuid())
+  siteId          String
+  site            Site          @relation(fields: [siteId], references: [id])
+  equipmentTypeId String
+  equipmentType   EquipmentType @relation(fields: [equipmentTypeId], references: [id])
+  brandId         String
+  brand           Brand         @relation(fields: [brandId], references: [id])
+
+  materialCode String?
+  modelCode    String
+  productName  String    @db.Text
+  serialNumber String?   @unique
+  macAddress   String?
+
+  quantity Int     @default(1)
+  minStock Int     @default(1)
+  cost     Decimal? @db.Decimal(12, 2)
+
+  status   ItemStatus @default(IN_SERVICE)
+  location String?
+  remark   String?    @db.Text
+  imageUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  borrowTransactions BorrowTransaction[]
+
+  @@index([siteId])
+  @@index([equipmentTypeId])
+  @@index([brandId])
+  @@index([status])
+  @@index([serialNumber])
+  @@map("spare_parts")
+}
+
+model BorrowTransaction {
+  id          String    @id @default(uuid())
+  sparePartId String
+  sparePart   SparePart @relation(fields: [sparePartId], references: [id])
+
+  borrowerId String
+  borrower   User   @relation("Borrower", fields: [borrowerId], references: [id])
+  approverId String?
+  approver   User?  @relation("Approver", fields: [approverId], references: [id])
+
+  status         BorrowStatus @default(PENDING)
+  project        String?
+  dateStart      DateTime?
+  dateEnd        DateTime?
+  expectedReturn DateTime?
+  actualReturn   DateTime?
+
+  borrowerRemark String? @db.Text
+  approverRemark String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sparePartId])
+  @@index([borrowerId])
+  @@index([status])
+  @@map("borrow_transactions")
+}
+
+model AdditionalOrder {
+  id      String  @id @default(uuid())
+  siteId  String?
+  site    Site?   @relation(fields: [siteId], references: [id])
+  brandId String?
+  brand   Brand?  @relation(fields: [brandId], references: [id])
+
+  type        String
+  modelCode   String?
+  productName String  @db.Text
+  quantity    Int     @default(1)
+  unitCost    Decimal? @db.Decimal(12, 2)
+  totalCost   Decimal? @db.Decimal(12, 2)
+  status      OrderStatus @default(PENDING)
+  remark      String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("additional_orders")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
