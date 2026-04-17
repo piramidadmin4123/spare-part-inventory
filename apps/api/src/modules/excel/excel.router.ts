@@ -176,11 +176,24 @@ excelRouter.post(
           const typeCode = String(cv(row, colMap.type) ?? '').trim();
           const brandName = String(cv(row, colMap.brand) ?? '').trim();
           const codeColVal = String(cv(row, colMap.code) ?? '').trim();
-          // productName: PRODUCT NAME → Code → "Type (Brand)" → skip
+          const rawProductName = String(cv(row, colMap.productName) ?? '').trim();
+          const rawSerial = String(cv(row, colMap.serialNumber) ?? '').trim();
+          const rawRemark = String(cv(row, colMap.remark) ?? '').trim();
+
+          // Skip footer/legend rows (e.g. "มีในระบบ Center (Spare parts)")
+          if (rawProductName.includes('ในระบบ') || codeColVal.includes('ในระบบ')) {
+            skipped++;
+            continue;
+          }
+
+          // productName: PRODUCT NAME → Code → "Type (Brand)" only if has serial/remark
+          const hasIdentifier = !!rawSerial || !!rawRemark || !!codeColVal || !!rawProductName;
           const productName =
-            String(cv(row, colMap.productName) ?? '').trim() ||
+            rawProductName ||
             codeColVal ||
-            (typeCode ? `${typeCode}${brandName ? ` (${brandName})` : ''}` : brandName);
+            (hasIdentifier && (rawSerial || rawRemark) && typeCode
+              ? `${typeCode}${brandName ? ` (${brandName})` : ''}`
+              : '');
           if (!productName) {
             skipped++;
             continue;
@@ -197,9 +210,9 @@ excelRouter.post(
           const cost =
             costRaw != null && costRaw !== '' ? new Prisma.Decimal(String(costRaw)) : null;
           const status = mapStatus(cv(row, colMap.status));
-          const serialNumber = String(cv(row, colMap.serialNumber) ?? '').trim() || null;
+          const serialNumber = rawSerial || null;
           const macAddress = String(cv(row, colMap.macAddress) ?? '').trim() || null;
-          const remark = String(cv(row, colMap.remark) ?? '').trim() || null;
+          const remark = rawRemark || null;
 
           try {
             // Upsert equipment type by code (default to "Unknown" if blank)
