@@ -1,7 +1,18 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Pencil, Trash2, Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Loader2,
+  Pencil,
+  Trash2,
+  Plus,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Upload,
+  Download,
+  FileSpreadsheet,
+} from 'lucide-react';
 import { createSparePartSchema, updateSparePartSchema } from '@spare-part/shared';
 import type { CreateSparePartInput, UpdateSparePartInput, SparePart } from '@spare-part/shared';
 import { Button } from '@/components/ui/button';
@@ -17,6 +28,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +63,9 @@ import { useSites } from '@/features/master-data/useMasterData';
 import { useEquipmentTypes } from '@/features/master-data/useMasterData';
 import { useBrands } from '@/features/master-data/useMasterData';
 import type { SparePartFilters } from '@/features/inventory/api';
+import { excelApi } from '@/features/excel/api';
+import type { ImportResult } from '@/features/excel/api';
+import { toast } from 'sonner';
 
 // ── Status config ──────────────────────────────────────────────────────────
 
@@ -326,6 +347,152 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
   );
 }
 
+// ── Import Dialog ─────────────────────────────────────────────────────────
+
+interface ImportDialogProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSuccess: () => void;
+}
+
+function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
+  const { data: sites = [] } = useSites();
+  const [siteId, setSiteId] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleClose() {
+    setFile(null);
+    setSiteId('');
+    setResult(null);
+    onOpenChange(false);
+  }
+
+  async function handleImport() {
+    if (!file || !siteId) return;
+    setLoading(true);
+    try {
+      const res = await excelApi.import(file, siteId);
+      setResult(res.data);
+      onSuccess();
+      toast.success(`นำเข้าสำเร็จ: ${res.data.imported} รายการใหม่, ${res.data.updated} อัปเดต`);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+        'เกิดข้อผิดพลาด';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-4 w-4" /> นำเข้าจาก Excel
+          </DialogTitle>
+        </DialogHeader>
+
+        {result ? (
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg border bg-green-50 p-3">
+                <p className="text-2xl font-bold text-green-600">{result.imported}</p>
+                <p className="text-xs text-muted-foreground">รายการใหม่</p>
+              </div>
+              <div className="rounded-lg border bg-blue-50 p-3">
+                <p className="text-2xl font-bold text-blue-600">{result.updated}</p>
+                <p className="text-xs text-muted-foreground">อัปเดต</p>
+              </div>
+              <div className="rounded-lg border bg-gray-50 p-3">
+                <p className="text-2xl font-bold text-gray-500">{result.skipped}</p>
+                <p className="text-xs text-muted-foreground">ข้าม</p>
+              </div>
+            </div>
+            {result.errors.length > 0 && (
+              <div className="max-h-40 overflow-auto rounded border bg-red-50 p-2">
+                <p className="mb-1 text-xs font-medium text-red-700">
+                  ข้อผิดพลาด ({result.errors.length}):
+                </p>
+                {result.errors.map((e, i) => (
+                  <p key={i} className="text-xs text-red-600">
+                    {e}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label>Site ปลายทาง *</Label>
+              <Select value={siteId} onValueChange={setSiteId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือก Site" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sites.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.code} — {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label>ไฟล์ Excel (.xlsx) *</Label>
+              <div
+                className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 p-6 transition-colors hover:border-primary/50 hover:bg-muted/20"
+                onClick={() => fileRef.current?.click()}
+              >
+                <FileSpreadsheet className="mb-2 h-8 w-8 text-muted-foreground" />
+                {file ? (
+                  <p className="text-sm font-medium text-foreground">{file.name}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">คลิกเพื่อเลือกไฟล์</p>
+                )}
+                <p className="mt-1 text-xs text-muted-foreground">รองรับ .xlsx ขนาดไม่เกิน 10MB</p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="text-xs text-primary underline underline-offset-2"
+              onClick={() => excelApi.downloadTemplate()}
+            >
+              ดาวน์โหลด Template
+            </button>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={loading}>
+            {result ? 'ปิด' : 'ยกเลิก'}
+          </Button>
+          {!result && (
+            <Button onClick={handleImport} disabled={!file || !siteId || loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              นำเข้า
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── InventoryPage ─────────────────────────────────────────────────────────
 
 const LIMIT = 20;
@@ -336,12 +503,31 @@ export function InventoryPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<SparePart | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SparePart | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { data: sites = [] } = useSites();
   const { data: types = [] } = useEquipmentTypes();
   const { data: brands = [] } = useBrands();
-  const { data, isLoading } = useSpareParts(filters);
+  const { data, isLoading, refetch } = useSpareParts(filters);
   const deletePart = useDeleteSparePart();
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await excelApi.export({
+        siteId: filters.siteId,
+        equipmentTypeId: filters.equipmentTypeId,
+        brandId: filters.brandId,
+        status: filters.status,
+        search: filters.search,
+      });
+    } catch {
+      toast.error('Export ไม่สำเร็จ');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const parts = data?.data ?? [];
   const meta = data?.meta;
@@ -370,9 +556,22 @@ export function InventoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between border-b bg-white px-6 py-4">
         <h1 className="text-xl font-bold">Spare Parts</h1>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="mr-1 h-4 w-4" /> เพิ่มรายการ
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="mr-1 h-4 w-4" /> Import
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting}>
+            {exporting ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-1 h-4 w-4" />
+            )}
+            Export
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="mr-1 h-4 w-4" /> เพิ่มรายการ
+          </Button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -567,6 +766,15 @@ export function InventoryPage() {
         onOpenChange={setSheetOpen}
         editing={editing}
         onSuccess={() => setSheetOpen(false)}
+      />
+
+      {/* Import Dialog */}
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onSuccess={() => {
+          void refetch();
+        }}
       />
 
       {/* Delete confirm */}
