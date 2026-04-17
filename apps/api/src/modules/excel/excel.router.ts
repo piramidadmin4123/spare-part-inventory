@@ -211,7 +211,123 @@ excelRouter.post(
         }
       }
 
-      res.json({ imported, updated, skipped, errors });
+      // ── Additional Order sheets ──────────────────────────────────────────
+      let ordersImported = 0;
+      for (const ws of wb.worksheets) {
+        if (!ws.name.toLowerCase().startsWith('additional order')) continue;
+
+        // Auto-map sheet → site (e.g. "Additional Order BKK" → BKK)
+        const keyword = ws.name
+          .replace(/additional order\s*/i, '')
+          .trim()
+          .match(/[A-Za-z]+/)?.[0];
+        let aoSiteId: string | null = null;
+        if (keyword) {
+          const s = await prisma.site.findFirst({
+            where: {
+              OR: [
+                { code: { contains: keyword, mode: 'insensitive' } },
+                { name: { contains: keyword, mode: 'insensitive' } },
+              ],
+            },
+          });
+          if (s) aoSiteId = s.id;
+        }
+
+        // Find header row
+        let aoHeader = -1;
+        for (let r = 1; r <= 10; r++) {
+          let found = false;
+          ws.getRow(r).eachCell((cell) => {
+            if (
+              String(cell.value ?? '')
+                .toUpperCase()
+                .includes('PRODUCT NAME')
+            )
+              found = true;
+          });
+          if (found) {
+            aoHeader = r;
+            break;
+          }
+        }
+        if (aoHeader < 0) continue;
+
+        // Column map
+        const aoCol: Record<string, number> = {};
+        ws.getRow(aoHeader).eachCell((cell, col) => {
+          const v = String(cell.value ?? '')
+            .trim()
+            .toLowerCase();
+          if (v === 'type') aoCol.type = col;
+          else if (v === 'brand') aoCol.brand = col;
+          else if (v === 'code') aoCol.modelCode = col;
+          else if (v.includes('product name')) aoCol.productName = col;
+          else if (v === 'qty') aoCol.qty = col;
+          else if (v.includes('cost') && !v.includes('total')) aoCol.unitCost = col;
+          else if (v.includes('total') && v.includes('cost')) aoCol.totalCost = col;
+          else if (v === 'remark') aoCol.remark = col;
+        });
+        if (!aoCol.productName) continue;
+
+        const aoCv = (row: ExcelJS.Row, col: number | undefined): unknown => {
+          if (!col) return undefined;
+          const v = row.getCell(col).value;
+          if (v && typeof v === 'object' && 'result' in v) return (v as { result: unknown }).result;
+          return v;
+        };
+
+        for (let r = aoHeader + 1; r <= ws.rowCount; r++) {
+          const row = ws.getRow(r);
+          const productName = String(aoCv(row, aoCol.productName) ?? '').trim();
+          if (!productName) continue;
+          const type = String(aoCv(row, aoCol.type) ?? '').trim() || 'Unknown';
+          const brandName = String(aoCv(row, aoCol.brand) ?? '').trim();
+          const modelCode = String(aoCv(row, aoCol.modelCode) ?? '').trim() || null;
+          const qtyRaw = aoCv(row, aoCol.qty);
+          const quantity =
+            typeof qtyRaw === 'number' ? qtyRaw : parseInt(String(qtyRaw ?? '1')) || 1;
+          const unitCostRaw = aoCv(row, aoCol.unitCost);
+          const unitCost =
+            unitCostRaw != null && unitCostRaw !== ''
+              ? new Prisma.Decimal(String(unitCostRaw))
+              : null;
+          const totalCostRaw = aoCv(row, aoCol.totalCost);
+          const totalCost =
+            totalCostRaw != null && totalCostRaw !== ''
+              ? new Prisma.Decimal(String(totalCostRaw))
+              : null;
+          const remark = String(aoCv(row, aoCol.remark) ?? '').trim() || null;
+
+          try {
+            let brand = brandName
+              ? await prisma.brand.findFirst({ where: { name: brandName } })
+              : null;
+            if (!brand && brandName)
+              brand = await prisma.brand.create({ data: { name: brandName } });
+
+            await prisma.additionalOrder.create({
+              data: {
+                siteId: aoSiteId,
+                brandId: brand?.id ?? null,
+                type,
+                modelCode,
+                productName,
+                quantity,
+                unitCost,
+                totalCost,
+                status: 'PENDING',
+                remark,
+              },
+            });
+            ordersImported++;
+          } catch (rowErr) {
+            errors.push(`AO Row ${r} (${productName}): ${(rowErr as Error).message}`);
+          }
+        }
+      }
+
+      res.json({ imported, updated, skipped, ordersImported, errors });
     } catch (err) {
       console.error('[IMPORT ERROR]', err);
       next(err);

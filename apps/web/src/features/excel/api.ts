@@ -4,6 +4,7 @@ export interface ImportResult {
   imported: number;
   updated: number;
   skipped: number;
+  ordersImported: number;
   errors: string[];
 }
 

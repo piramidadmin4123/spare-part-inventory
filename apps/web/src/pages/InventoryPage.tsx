@@ -399,14 +399,18 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
 
         {result ? (
           <div className="space-y-3 py-2">
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-2 gap-3 text-center">
               <div className="rounded-lg border bg-green-50 p-3">
                 <p className="text-2xl font-bold text-green-600">{result.imported}</p>
-                <p className="text-xs text-muted-foreground">รายการใหม่</p>
+                <p className="text-xs text-muted-foreground">Spare Part ใหม่</p>
               </div>
               <div className="rounded-lg border bg-blue-50 p-3">
                 <p className="text-2xl font-bold text-blue-600">{result.updated}</p>
                 <p className="text-xs text-muted-foreground">อัปเดต</p>
+              </div>
+              <div className="rounded-lg border bg-amber-50 p-3">
+                <p className="text-2xl font-bold text-amber-600">{result.ordersImported}</p>
+                <p className="text-xs text-muted-foreground">คำสั่งซื้อเพิ่ม</p>
               </div>
               <div className="rounded-lg border bg-gray-50 p-3">
                 <p className="text-2xl font-bold text-gray-500">{result.skipped}</p>
@@ -659,6 +663,7 @@ export function InventoryPage() {
               <TableHead>ประเภท</TableHead>
               <TableHead>Brand</TableHead>
               <TableHead className="text-center">Qty</TableHead>
+              <TableHead className="text-right">ราคา (บาท)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Location</TableHead>
               <TableHead className="w-20" />
@@ -667,13 +672,13 @@ export function InventoryPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-16 text-center">
+                <TableCell colSpan={10} className="py-16 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : parts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-16 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="py-16 text-center text-muted-foreground">
                   ไม่พบข้อมูล
                 </TableCell>
               </TableRow>
@@ -694,6 +699,9 @@ export function InventoryPage() {
                   </TableCell>
                   <TableCell className="text-xs">{p.brand.name}</TableCell>
                   <TableCell className="text-center font-medium">{p.quantity}</TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground">
+                    {p.cost ? Number(p.cost).toLocaleString('th-TH') : '—'}
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={p.status} />
                   </TableCell>
