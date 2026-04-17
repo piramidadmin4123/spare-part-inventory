@@ -47,10 +47,11 @@ model User {
   id         String   @id @default(uuid())
   email      String   @unique
   name       String
-  role       UserRole @default(TECHNICIAN)
-  phone      String?
-  lineUserId String?
-  isActive   Boolean  @default(true)
+  role         UserRole @default(TECHNICIAN)
+  passwordHash String?
+  phone        String?
+  lineUserId   String?
+  isActive     Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

@@ -95,21 +95,19 @@ async function main() {
   }
   console.info(`✓ ${BRANDS.length} brands seeded`);
 
-  // Seed admin user
-  const hashedPassword = await bcrypt.hash('PiRaMiDAdMiN_541', 12);
+  const passwordHash = await bcrypt.hash('PiRaMiDAdMiN_541', 12);
   await prisma.user.upsert({
     where: { email: 'piramid_admin@gmail.com' },
-    update: {},
+    update: { passwordHash },
     create: {
       email: 'piramid_admin@gmail.com',
       name: 'Pyramid Admin',
       role: 'ADMIN',
       isActive: true,
-      // password stored separately (see Phase 2 auth implementation)
+      passwordHash,
     },
   });
-  // Store hashed password reference (will be used in Phase 2)
-  console.info(`✓ Admin user seeded (${hashedPassword.length > 0 ? 'password hashed' : 'failed'})`);
+  console.info('✓ Admin user seeded');
 
   console.info('✅ Seed complete');
 }
