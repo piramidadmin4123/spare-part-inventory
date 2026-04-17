@@ -680,8 +680,124 @@ excelRouter.post(
       let imported = 0;
       const errors: string[] = [];
 
+      const cv = (row: ExcelJS.Row, col: number | undefined): unknown => {
+        if (!col) return undefined;
+        const v = row.getCell(col).value;
+        if (v && typeof v === 'object' && 'result' in v) return (v as { result: unknown }).result;
+        return v;
+      };
+
+      const parseDate = (raw: unknown): Date | null => {
+        if (!raw) return null;
+        if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+        const s = String(raw).trim();
+        if (!s) return null;
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+      };
+
       for (const ws of wb.worksheets) {
-        // Find header row (look for "Borrower Email")
+        // ── Format A: Original Excel ("Spare Parts *" sheets with Name/Date Start cols) ──
+        if (ws.name.toLowerCase().startsWith('spare parts')) {
+          // Find header row (contains "PRODUCT NAME")
+          let headerRow = -1;
+          for (let r = 1; r <= Math.min(ws.rowCount, 15); r++) {
+            let found = false;
+            ws.getRow(r).eachCell((cell) => {
+              if (
+                String(cell.value ?? '')
+                  .toUpperCase()
+                  .includes('PRODUCT NAME')
+              )
+                found = true;
+            });
+            if (found) {
+              headerRow = r;
+              break;
+            }
+          }
+          if (headerRow < 0) continue;
+
+          const colMap: Record<string, number> = {};
+          ws.getRow(headerRow).eachCell((cell, col) => {
+            const v = String(cell.value ?? '')
+              .trim()
+              .toLowerCase();
+            if (v.includes('serial') || v.includes('serail')) colMap.serialNumber = col;
+            else if (v.includes('code') && (v.includes('model') || v === 'code'))
+              colMap.modelCode = col;
+            else if (v === 'name') colMap.borrowerName = col;
+            else if (v.includes('date start')) colMap.dateStart = col;
+            else if (v.includes('date end')) colMap.dateEnd = col;
+            else if (v === 'project') colMap.project = col;
+          });
+
+          if (!colMap.borrowerName) continue;
+
+          for (let r = headerRow + 1; r <= ws.rowCount; r++) {
+            const row = ws.getRow(r);
+            const borrowerName = String(cv(row, colMap.borrowerName) ?? '').trim();
+            const looksLikeDate = /^\d+[/\-]\d+[/\-]\d+$/.test(borrowerName);
+            if (!borrowerName || looksLikeDate) continue;
+
+            const serialNumber = String(cv(row, colMap.serialNumber) ?? '').trim();
+            const modelCode = String(cv(row, colMap.modelCode) ?? '').trim();
+            if (!serialNumber && !modelCode) continue;
+
+            try {
+              const sparePart = serialNumber
+                ? await prisma.sparePart.findFirst({ where: { serialNumber } })
+                : await prisma.sparePart.findFirst({ where: { modelCode } });
+              if (!sparePart) {
+                errors.push(
+                  `Row ${r} [${ws.name}]: ไม่พบ spare part (${serialNumber || modelCode})`
+                );
+                continue;
+              }
+
+              const existingBorrow = await prisma.borrowTransaction.findFirst({
+                where: { sparePartId: sparePart.id, status: { in: ['APPROVED', 'PENDING'] } },
+              });
+              if (existingBorrow) continue;
+
+              const cleanName = borrowerName.replace(/^[PN]'\s*/i, '').trim();
+              let borrower = await prisma.user.findFirst({
+                where: { name: { contains: cleanName, mode: 'insensitive' } },
+              });
+              if (!borrower && cleanName !== borrowerName) {
+                borrower = await prisma.user.findFirst({
+                  where: { name: { contains: borrowerName, mode: 'insensitive' } },
+                });
+              }
+              const borrowerId = borrower?.id ?? req.user!.id;
+              const borrowerRemark = borrower ? null : `ผู้ยืม (นำเข้า): ${borrowerName}`;
+
+              const dateStart = parseDate(cv(row, colMap.dateStart));
+              const dateEnd = parseDate(cv(row, colMap.dateEnd));
+              const project = String(cv(row, colMap.project) ?? '').trim() || null;
+
+              await prisma.borrowTransaction.create({
+                data: {
+                  sparePartId: sparePart.id,
+                  borrowerId,
+                  approverId: req.user!.id,
+                  status: dateEnd ? 'RETURNED' : 'APPROVED',
+                  project,
+                  dateStart,
+                  expectedReturn: dateEnd,
+                  actualReturn: dateEnd,
+                  borrowerRemark,
+                },
+              });
+              imported++;
+            } catch (rowErr) {
+              errors.push(`Row ${r} [${ws.name}]: ${(rowErr as Error).message}`);
+            }
+          }
+          continue;
+        }
+
+        // ── Format B: Template format ("Borrower Email" column) ──
         let headerRow = -1;
         for (let r = 1; r <= Math.min(ws.rowCount, 10); r++) {
           let found = false;
@@ -718,22 +834,6 @@ excelRouter.post(
 
         if (!colMap.borrowerEmail || !colMap.modelCode) continue;
 
-        const cv = (row: ExcelJS.Row, col: number | undefined): unknown => {
-          if (!col) return undefined;
-          const v = row.getCell(col).value;
-          if (v && typeof v === 'object' && 'result' in v) return (v as { result: unknown }).result;
-          return v;
-        };
-
-        const parseDate = (raw: unknown): Date | null => {
-          if (!raw) return null;
-          if (raw instanceof Date) return raw;
-          const s = String(raw).trim();
-          if (!s) return null;
-          const d = new Date(s);
-          return isNaN(d.getTime()) ? null : d;
-        };
-
         const mapBorrowStatus = (
           raw: unknown
         ): 'PENDING' | 'APPROVED' | 'RETURNED' | 'CANCELLED' | 'REJECTED' => {
@@ -750,14 +850,17 @@ excelRouter.post(
           const borrowerEmail = String(cv(row, colMap.borrowerEmail) ?? '').trim();
           const modelCode = String(cv(row, colMap.modelCode) ?? '').trim();
           if (!borrowerEmail || !modelCode) continue;
-
-          const noteText = String(cv(row, 1) ?? '').toLowerCase();
-          if (noteText.includes('status values')) continue;
+          if (
+            String(cv(row, 1) ?? '')
+              .toLowerCase()
+              .includes('status values')
+          )
+            continue;
 
           try {
             const borrower = await prisma.user.findUnique({ where: { email: borrowerEmail } });
             if (!borrower) {
-              errors.push(`Row ${r}: User not found (${borrowerEmail})`);
+              errors.push(`Row ${r}: ไม่พบ user (${borrowerEmail})`);
               continue;
             }
 
@@ -766,28 +869,21 @@ excelRouter.post(
               ? await prisma.sparePart.findFirst({ where: { serialNumber } })
               : await prisma.sparePart.findFirst({ where: { modelCode } });
             if (!sparePart) {
-              errors.push(`Row ${r}: Spare part not found (${modelCode})`);
+              errors.push(`Row ${r}: ไม่พบ spare part (${modelCode})`);
               continue;
             }
-
-            const status = mapBorrowStatus(cv(row, colMap.status));
-            const dateStart = parseDate(cv(row, colMap.dateStart));
-            const expectedReturn = parseDate(cv(row, colMap.expectedReturn));
-            const actualReturn = parseDate(cv(row, colMap.actualReturn));
-            const project = String(cv(row, colMap.project) ?? '').trim() || null;
-            const remark = String(cv(row, colMap.remark) ?? '').trim() || null;
 
             await prisma.borrowTransaction.create({
               data: {
                 sparePartId: sparePart.id,
                 borrowerId: borrower.id,
                 approverId: req.user!.id,
-                status,
-                project,
-                dateStart,
-                expectedReturn,
-                actualReturn,
-                borrowerRemark: remark,
+                status: mapBorrowStatus(cv(row, colMap.status)),
+                project: String(cv(row, colMap.project) ?? '').trim() || null,
+                dateStart: parseDate(cv(row, colMap.dateStart)),
+                expectedReturn: parseDate(cv(row, colMap.expectedReturn)),
+                actualReturn: parseDate(cv(row, colMap.actualReturn)),
+                borrowerRemark: String(cv(row, colMap.remark) ?? '').trim() || null,
               },
             });
             imported++;
