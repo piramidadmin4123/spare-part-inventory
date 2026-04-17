@@ -152,6 +152,7 @@ excelRouter.post(
           else if (v.includes('cost')) colMap.cost = col;
           else if (v === 'status') colMap.status = col;
           else if (v.includes('serial') || v.includes('serail')) colMap.serialNumber = col;
+          else if (v.includes('mac')) colMap.macAddress = col;
           else if (v === 'remark') colMap.remark = col;
           else if (v === 'name') colMap.borrowerName = col;
           else if (v.includes('date start')) colMap.borrowDateStart = col;
@@ -171,16 +172,19 @@ excelRouter.post(
 
         for (let r = headerRow + 1; r <= ws.rowCount; r++) {
           const row = ws.getRow(r);
-          // productName: prefer PRODUCT NAME col, fall back to plain Code col (REIGNWOOD format)
+          // Read type/brand early so we can use them as productName fallback
+          const typeCode = String(cv(row, colMap.type) ?? '').trim();
+          const brandName = String(cv(row, colMap.brand) ?? '').trim();
           const codeColVal = String(cv(row, colMap.code) ?? '').trim();
-          const productName = String(cv(row, colMap.productName) ?? '').trim() || codeColVal;
+          // productName: PRODUCT NAME → Code → "Type (Brand)" → skip
+          const productName =
+            String(cv(row, colMap.productName) ?? '').trim() ||
+            codeColVal ||
+            (typeCode ? `${typeCode}${brandName ? ` (${brandName})` : ''}` : brandName);
           if (!productName) {
             skipped++;
             continue;
           }
-
-          const typeCode = String(cv(row, colMap.type) ?? '').trim();
-          const brandName = String(cv(row, colMap.brand) ?? '').trim();
           const materialCode = String(cv(row, colMap.materialCode) ?? '').trim() || null;
           const modelCode =
             String(cv(row, colMap.modelCode) ?? '').trim() ||
@@ -194,6 +198,7 @@ excelRouter.post(
             costRaw != null && costRaw !== '' ? new Prisma.Decimal(String(costRaw)) : null;
           const status = mapStatus(cv(row, colMap.status));
           const serialNumber = String(cv(row, colMap.serialNumber) ?? '').trim() || null;
+          const macAddress = String(cv(row, colMap.macAddress) ?? '').trim() || null;
           const remark = String(cv(row, colMap.remark) ?? '').trim() || null;
 
           try {
@@ -235,6 +240,7 @@ excelRouter.post(
                   cost,
                   status,
                   serialNumber,
+                  macAddress,
                   remark,
                 },
               });
@@ -253,6 +259,7 @@ excelRouter.post(
                   cost,
                   status,
                   serialNumber,
+                  macAddress,
                   remark,
                 },
               });
