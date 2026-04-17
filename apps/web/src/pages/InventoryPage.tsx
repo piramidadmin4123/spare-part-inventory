@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -138,6 +138,31 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
         }
       : { quantity: 1, minStock: 1, status: 'IN_STOCK' },
   });
+
+  useEffect(() => {
+    if (open) {
+      reset(
+        editing
+          ? {
+              siteId: editing.site.id,
+              equipmentTypeId: editing.equipmentType.id,
+              brandId: editing.brand.id,
+              materialCode: editing.materialCode ?? '',
+              modelCode: editing.modelCode,
+              productName: editing.productName,
+              serialNumber: editing.serialNumber ?? '',
+              macAddress: editing.macAddress ?? '',
+              quantity: editing.quantity,
+              minStock: editing.minStock,
+              cost: editing.cost ? Number(editing.cost) : undefined,
+              status: editing.status as StatusValue,
+              location: editing.location ?? '',
+              remark: editing.remark ?? '',
+            }
+          : { quantity: 1, minStock: 1, status: 'IN_STOCK' }
+      );
+    }
+  }, [open, editing]);
 
   const isPending = createPart.isPending || updatePart.isPending;
 
@@ -657,79 +682,90 @@ export function InventoryPage() {
         <Table>
           <TableHeader className="sticky top-0 bg-white">
             <TableRow>
-              <TableHead>Model Code</TableHead>
-              <TableHead>Product Name</TableHead>
-              <TableHead>Site</TableHead>
-              <TableHead>ประเภท</TableHead>
+              <TableHead className="w-10 text-center">No.</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Brand</TableHead>
+              <TableHead>Material Code</TableHead>
+              <TableHead>Product Name</TableHead>
               <TableHead className="text-center">Qty</TableHead>
-              <TableHead className="text-right">ราคา (บาท)</TableHead>
+              <TableHead className="text-right">Cost (Total)</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Location</TableHead>
+              <TableHead>Serial Number</TableHead>
+              <TableHead>Remark</TableHead>
               <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-16 text-center">
+                <TableCell colSpan={11} className="py-16 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : parts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-16 text-center text-muted-foreground">
+                <TableCell colSpan={11} className="py-16 text-center text-muted-foreground">
                   ไม่พบข้อมูล
                 </TableCell>
               </TableRow>
             ) : (
-              parts.map((p) => (
-                <TableRow key={p.id} className="group">
-                  <TableCell className="font-mono text-xs font-medium">{p.modelCode}</TableCell>
-                  <TableCell className="max-w-[200px] truncate text-sm" title={p.productName}>
-                    {p.productName}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-mono text-xs">
-                      {p.site.code}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {p.equipmentType.icon} {p.equipmentType.code}
-                  </TableCell>
-                  <TableCell className="text-xs">{p.brand.name}</TableCell>
-                  <TableCell className="text-center font-medium">{p.quantity}</TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground">
-                    {p.cost ? Number(p.cost).toLocaleString('th-TH') : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={p.status} />
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {p.location ?? '—'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => openEdit(p)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteTarget(p)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+              parts.map((p, idx) => {
+                const rowNo = ((filters.page ?? 1) - 1) * LIMIT + idx + 1;
+                const costTotal = p.cost != null ? Number(p.cost) * p.quantity : null;
+                return (
+                  <TableRow key={p.id} className="group">
+                    <TableCell className="text-center text-xs text-muted-foreground">
+                      {rowNo}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {p.equipmentType.icon} {p.equipmentType.code}
+                    </TableCell>
+                    <TableCell className="text-xs">{p.brand.name}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {p.materialCode ?? '—'}
+                    </TableCell>
+                    <TableCell className="max-w-[220px] truncate text-sm" title={p.productName}>
+                      {p.productName}
+                    </TableCell>
+                    <TableCell className="text-center font-medium">{p.quantity}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {costTotal != null ? costTotal.toLocaleString('th-TH') : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={p.status} />
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {p.serialNumber ?? '—'}
+                    </TableCell>
+                    <TableCell
+                      className="max-w-[160px] truncate text-xs text-muted-foreground"
+                      title={p.remark ?? undefined}
+                    >
+                      {p.remark ?? '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => openEdit(p)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteTarget(p)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

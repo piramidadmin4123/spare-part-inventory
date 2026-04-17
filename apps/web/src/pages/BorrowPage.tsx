@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -11,9 +11,15 @@ import {
   XCircle,
   RotateCcw,
   Ban,
+  Upload,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { borrowRequestSchema } from '@spare-part/shared';
 import type { BorrowRequestInput, BorrowTransaction } from '@spare-part/shared';
+import { excelApi } from '@/features/excel/api';
+import type { BorrowImportResult } from '@/features/excel/api';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,7 +64,9 @@ import {
   useRejectBorrow,
   useReturnBorrow,
   useCancelBorrow,
+  BORROW_KEY,
 } from '@/features/borrow/useBorrow';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSpareParts } from '@/features/inventory/useInventory';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -342,6 +350,130 @@ function ReturnDialog({
   );
 }
 
+// ── Borrow Import Dialog ───────────────────────────────────────────────────
+
+function BorrowImportDialog({
+  open,
+  onOpenChange,
+  onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSuccess: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<BorrowImportResult | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleClose() {
+    setFile(null);
+    setResult(null);
+    onOpenChange(false);
+  }
+
+  async function handleImport() {
+    if (!file) return;
+    setLoading(true);
+    try {
+      const res = await excelApi.borrowImport(file);
+      setResult(res.data);
+      onSuccess();
+      toast.success(`นำเข้าสำเร็จ: ${res.data.imported} รายการ`);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+        'เกิดข้อผิดพลาด';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-4 w-4" /> นำเข้าข้อมูลการยืม
+          </DialogTitle>
+        </DialogHeader>
+
+        {result ? (
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div className="rounded-lg border bg-green-50 p-3">
+                <p className="text-2xl font-bold text-green-600">{result.imported}</p>
+                <p className="text-xs text-muted-foreground">รายการใหม่</p>
+              </div>
+              <div className="rounded-lg border bg-gray-50 p-3">
+                <p className="text-2xl font-bold text-gray-500">{result.errors.length}</p>
+                <p className="text-xs text-muted-foreground">ข้อผิดพลาด</p>
+              </div>
+            </div>
+            {result.errors.length > 0 && (
+              <div className="max-h-40 overflow-auto rounded border bg-red-50 p-2">
+                <p className="mb-1 text-xs font-medium text-red-700">
+                  ข้อผิดพลาด ({result.errors.length}):
+                </p>
+                {result.errors.map((e, i) => (
+                  <p key={i} className="text-xs text-red-600">
+                    {e}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label>ไฟล์ Excel (.xlsx) *</Label>
+              <div
+                className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 p-6 transition-colors hover:border-primary/50 hover:bg-muted/20"
+                onClick={() => fileRef.current?.click()}
+              >
+                <FileSpreadsheet className="mb-2 h-8 w-8 text-muted-foreground" />
+                {file ? (
+                  <p className="text-sm font-medium">{file.name}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">คลิกเพื่อเลือกไฟล์</p>
+                )}
+                <p className="mt-1 text-xs text-muted-foreground">รองรับ .xlsx ขนาดไม่เกิน 10MB</p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              className="text-xs text-primary underline underline-offset-2"
+              onClick={() => excelApi.downloadBorrowTemplate()}
+            >
+              ดาวน์โหลด Template
+            </button>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={loading}>
+            {result ? 'ปิด' : 'ยกเลิก'}
+          </Button>
+          {!result && (
+            <Button onClick={handleImport} disabled={!file || loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              นำเข้า
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── BorrowPage ─────────────────────────────────────────────────────────────
 
 const LIMIT = 20;
@@ -349,10 +481,24 @@ const LIMIT = 20;
 export function BorrowPage() {
   const { user } = useAuthStore();
   const isManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const qc = useQueryClient();
 
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await excelApi.borrowExport(statusFilter);
+    } catch {
+      toast.error('Export ไม่สำเร็จ');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // action dialogs
   const [approveTarget, setApproveTarget] = useState<BorrowTransaction | null>(null);
@@ -373,11 +519,28 @@ export function BorrowPage() {
       {/* Header */}
       <div className="flex items-center justify-between border-b bg-white px-6 py-4">
         <h1 className="text-xl font-bold">ยืม / คืน</h1>
-        {user?.role !== 'VIEWER' && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" /> ขอยืม
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isManager && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="mr-1 h-4 w-4" /> Import
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting}>
+                {exporting ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-1 h-4 w-4" />
+                )}
+                Export
+              </Button>
+            </>
+          )}
+          {user?.role !== 'VIEWER' && (
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1 h-4 w-4" /> ขอยืม
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filter */}
@@ -551,6 +714,13 @@ export function BorrowPage() {
 
       {/* Create dialog */}
       <CreateBorrowDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      {/* Import dialog */}
+      <BorrowImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onSuccess={() => qc.invalidateQueries({ queryKey: BORROW_KEY })}
+      />
 
       {/* Approve dialog */}
       <RemarkDialog
