@@ -43,7 +43,9 @@ excelRouter.post(
       if (!site) throw new AppError(404, 'NOT_FOUND', 'Site not found');
 
       const wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(req.file.buffer.buffer as ArrayBuffer);
+      const buf = req.file.buffer;
+      const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+      await wb.xlsx.load(ab);
 
       let imported = 0;
       let updated = 0;
@@ -52,6 +54,22 @@ excelRouter.post(
 
       for (const ws of wb.worksheets) {
         if (!ws.name.toLowerCase().startsWith('spare parts')) continue;
+
+        // Auto-map sheet name → site (e.g. "Spare Parts KIS" → KIS site)
+        let sheetSiteId = siteId;
+        const sheetSuffix = ws.name.replace(/spare parts\s*/i, '').trim();
+        const englishKeyword = sheetSuffix.match(/[A-Za-z_]+/)?.[0];
+        if (englishKeyword && englishKeyword.toLowerCase() !== 'all') {
+          const matched = await prisma.site.findFirst({
+            where: {
+              OR: [
+                { code: { contains: englishKeyword, mode: 'insensitive' } },
+                { name: { contains: englishKeyword, mode: 'insensitive' } },
+              ],
+            },
+          });
+          if (matched) sheetSiteId = matched.id;
+        }
 
         // Find header row (contains "PRODUCT NAME")
         let headerRow = -1;
@@ -78,8 +96,8 @@ excelRouter.post(
           const v = String(cell.value ?? '')
             .trim()
             .toLowerCase();
-          if (v === 'type') colMap.type = col;
-          else if (v === 'brand') colMap.brand = col;
+          if (v === 'type' || v.startsWith('type')) colMap.type = col;
+          else if (v === 'brand' || v.startsWith('brand')) colMap.brand = col;
           else if (v.includes('material')) colMap.materialCode = col;
           else if (v.includes('code') && v.includes('model')) colMap.modelCode = col;
           else if (v.includes('product name')) colMap.productName = col;
@@ -92,32 +110,36 @@ excelRouter.post(
 
         if (!colMap.productName) continue;
 
+        // Unwrap formula cells: ExcelJS returns { formula, result } for formula cells
+        const cv = (row: ExcelJS.Row, col: number | undefined): unknown => {
+          if (!col) return undefined;
+          const v = row.getCell(col).value;
+          if (v && typeof v === 'object' && 'result' in v) return (v as { result: unknown }).result;
+          return v;
+        };
+
         for (let r = headerRow + 1; r <= ws.rowCount; r++) {
           const row = ws.getRow(r);
-          const productName = String(row.getCell(colMap.productName).value ?? '').trim();
+          const productName = String(cv(row, colMap.productName) ?? '').trim();
           if (!productName) {
             skipped++;
             continue;
           }
 
-          const typeCode = String(row.getCell(colMap.type ?? 0).value ?? '').trim();
-          const brandName = String(row.getCell(colMap.brand ?? 0).value ?? '').trim();
-          const materialCode =
-            String(row.getCell(colMap.materialCode ?? 0).value ?? '').trim() || null;
+          const typeCode = String(cv(row, colMap.type) ?? '').trim();
+          const brandName = String(cv(row, colMap.brand) ?? '').trim();
+          const materialCode = String(cv(row, colMap.materialCode) ?? '').trim() || null;
           const modelCode =
-            String(row.getCell(colMap.modelCode ?? 0).value ?? '').trim() ||
-            productName.slice(0, 50);
-          const qtyRaw = row.getCell(colMap.qty ?? 0).value;
+            String(cv(row, colMap.modelCode) ?? '').trim() || productName.slice(0, 50);
+          const qtyRaw = cv(row, colMap.qty);
           const quantity =
             typeof qtyRaw === 'number' ? qtyRaw : parseInt(String(qtyRaw ?? '1')) || 1;
-          const costRaw = row.getCell(colMap.cost ?? 0).value;
+          const costRaw = cv(row, colMap.cost);
           const cost =
             costRaw != null && costRaw !== '' ? new Prisma.Decimal(String(costRaw)) : null;
-          const statusRaw = row.getCell(colMap.status ?? 0).value;
-          const status = mapStatus(statusRaw);
-          const serialNumber =
-            String(row.getCell(colMap.serialNumber ?? 0).value ?? '').trim() || null;
-          const remark = String(row.getCell(colMap.remark ?? 0).value ?? '').trim() || null;
+          const status = mapStatus(cv(row, colMap.status));
+          const serialNumber = String(cv(row, colMap.serialNumber) ?? '').trim() || null;
+          const remark = String(cv(row, colMap.remark) ?? '').trim() || null;
 
           try {
             // Upsert equipment type by code
@@ -151,7 +173,7 @@ excelRouter.post(
               await prisma.sparePart.update({
                 where: { id: existing.id },
                 data: {
-                  siteId,
+                  siteId: sheetSiteId,
                   equipmentTypeId: equipmentType.id,
                   brandId: brand.id,
                   materialCode,
@@ -168,7 +190,7 @@ excelRouter.post(
             } else {
               await prisma.sparePart.create({
                 data: {
-                  siteId,
+                  siteId: sheetSiteId,
                   equipmentTypeId: equipmentType.id,
                   brandId: brand.id,
                   materialCode,
@@ -191,6 +213,7 @@ excelRouter.post(
 
       res.json({ imported, updated, skipped, errors });
     } catch (err) {
+      console.error('[IMPORT ERROR]', err);
       next(err);
     }
   }
