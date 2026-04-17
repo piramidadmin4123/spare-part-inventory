@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/AppLayout';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { InventoryPage } from '@/pages/InventoryPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,10 +38,7 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
 
               {/* Coming in future phases */}
-              <Route
-                path="/inventory/*"
-                element={<div className="p-6 text-muted-foreground">Inventory — Phase 4</div>}
-              />
+              <Route path="/inventory" element={<InventoryPage />} />
               <Route
                 path="/borrow/*"
                 element={<div className="p-6 text-muted-foreground">Borrow — Phase 5</div>}
