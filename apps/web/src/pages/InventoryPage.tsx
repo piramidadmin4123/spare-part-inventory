@@ -452,6 +452,16 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
                 <p className="text-xs text-muted-foreground">ข้อผิดพลาด</p>
               </div>
             </div>
+            {result.sheetsProcessed?.length > 0 && (
+              <div className="max-h-28 overflow-auto rounded border bg-blue-50 p-2">
+                <p className="mb-1 text-xs font-medium text-blue-700">ชีทที่ประมวลผล:</p>
+                {result.sheetsProcessed.map((s, i) => (
+                  <p key={i} className="text-xs text-blue-600">
+                    {s}
+                  </p>
+                ))}
+              </div>
+            )}
             {result.errors.length > 0 && (
               <div className="max-h-40 overflow-auto rounded border bg-red-50 p-2">
                 <p className="mb-1 text-xs font-medium text-red-700">

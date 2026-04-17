@@ -52,6 +52,7 @@ excelRouter.post(
       let skipped = 0;
       let borrowsImported = 0;
       const errors: string[] = [];
+      const sheetsProcessed: string[] = [];
 
       const parseDate = (raw: unknown): Date | null => {
         if (!raw) return null;
@@ -69,18 +70,36 @@ excelRouter.post(
         // "Spare Parts All" → always BKK; "Spare Parts KIS" → KIS, etc.
         let sheetSiteId = siteId;
         const sheetSuffix = ws.name.replace(/spare parts\s*/i, '').trim();
-        const englishKeyword = sheetSuffix.match(/[A-Za-z_]+/)?.[0];
+        const allKeywords = sheetSuffix.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [];
+        const englishKeyword = allKeywords.join(' ').trim() || null;
         if (englishKeyword) {
-          const keyword = englishKeyword.toLowerCase() === 'all' ? 'BKK' : englishKeyword;
-          const matched = await prisma.site.findFirst({
-            where: {
-              OR: [
-                { code: { contains: keyword, mode: 'insensitive' } },
-                { name: { contains: keyword, mode: 'insensitive' } },
-              ],
-            },
-          });
-          if (matched) sheetSiteId = matched.id;
+          // Try to match by full suffix first, then each word token
+          const tokens = [englishKeyword, ...allKeywords];
+          let matched = null;
+          for (const token of tokens) {
+            const keyword = token.toLowerCase() === 'all' ? 'BKK' : token;
+            matched = await prisma.site.findFirst({
+              where: {
+                OR: [
+                  { code: { equals: keyword, mode: 'insensitive' } },
+                  { code: { contains: keyword, mode: 'insensitive' } },
+                  { name: { contains: keyword, mode: 'insensitive' } },
+                ],
+              },
+            });
+            if (matched) break;
+          }
+          if (matched) {
+            sheetSiteId = matched.id;
+            sheetsProcessed.push(`"${ws.name}" → ${matched.code}`);
+          } else {
+            errors.push(
+              `Sheet "${ws.name}": ไม่พบ site ที่ตรงกับ "${englishKeyword}" — ข้ามชีทนี้`
+            );
+            continue;
+          }
+        } else {
+          sheetsProcessed.push(`"${ws.name}" → (ใช้ site ที่เลือก: ${site.code})`);
         }
 
         // Find header row (contains "PRODUCT NAME")
@@ -393,7 +412,15 @@ excelRouter.post(
         }
       }
 
-      res.json({ imported, updated, skipped, ordersImported, borrowsImported, errors });
+      res.json({
+        imported,
+        updated,
+        skipped,
+        ordersImported,
+        borrowsImported,
+        errors,
+        sheetsProcessed,
+      });
     } catch (err) {
       console.error('[IMPORT ERROR]', err);
       next(err);
