@@ -402,7 +402,9 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
       const res = await excelApi.import(file, siteId);
       setResult(res.data);
       onSuccess();
-      toast.success(`นำเข้าสำเร็จ: ${res.data.imported} รายการใหม่, ${res.data.updated} อัปเดต`);
+      toast.success(
+        `นำเข้าสำเร็จ: ${res.data.imported} SP ใหม่, ${res.data.updated} อัปเดต, ${res.data.borrowsImported} การยืม`
+      );
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
@@ -424,22 +426,30 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
 
         {result ? (
           <div className="space-y-3 py-2">
-            <div className="grid grid-cols-2 gap-3 text-center">
+            <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-lg border bg-green-50 p-3">
                 <p className="text-2xl font-bold text-green-600">{result.imported}</p>
-                <p className="text-xs text-muted-foreground">Spare Part ใหม่</p>
+                <p className="text-xs text-muted-foreground">SP ใหม่</p>
               </div>
               <div className="rounded-lg border bg-blue-50 p-3">
                 <p className="text-2xl font-bold text-blue-600">{result.updated}</p>
                 <p className="text-xs text-muted-foreground">อัปเดต</p>
               </div>
-              <div className="rounded-lg border bg-amber-50 p-3">
-                <p className="text-2xl font-bold text-amber-600">{result.ordersImported}</p>
-                <p className="text-xs text-muted-foreground">คำสั่งซื้อเพิ่ม</p>
-              </div>
               <div className="rounded-lg border bg-gray-50 p-3">
                 <p className="text-2xl font-bold text-gray-500">{result.skipped}</p>
                 <p className="text-xs text-muted-foreground">ข้าม</p>
+              </div>
+              <div className="rounded-lg border bg-purple-50 p-3">
+                <p className="text-2xl font-bold text-purple-600">{result.borrowsImported}</p>
+                <p className="text-xs text-muted-foreground">การยืม</p>
+              </div>
+              <div className="rounded-lg border bg-amber-50 p-3">
+                <p className="text-2xl font-bold text-amber-600">{result.ordersImported}</p>
+                <p className="text-xs text-muted-foreground">คำสั่งซื้อ</p>
+              </div>
+              <div className="rounded-lg border bg-red-50 p-3">
+                <p className="text-2xl font-bold text-red-500">{result.errors.length}</p>
+                <p className="text-xs text-muted-foreground">ข้อผิดพลาด</p>
               </div>
             </div>
             {result.errors.length > 0 && (

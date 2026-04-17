@@ -50,7 +50,17 @@ excelRouter.post(
       let imported = 0;
       let updated = 0;
       let skipped = 0;
+      let borrowsImported = 0;
       const errors: string[] = [];
+
+      const parseDate = (raw: unknown): Date | null => {
+        if (!raw) return null;
+        if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
+        const s = String(raw).trim();
+        if (!s) return null;
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+      };
 
       for (const ws of wb.worksheets) {
         if (!ws.name.toLowerCase().startsWith('spare parts')) continue;
@@ -106,6 +116,10 @@ excelRouter.post(
           else if (v === 'status') colMap.status = col;
           else if (v.includes('serial') || v.includes('serail')) colMap.serialNumber = col;
           else if (v === 'remark') colMap.remark = col;
+          else if (v === 'name') colMap.borrowerName = col;
+          else if (v.includes('date start')) colMap.borrowDateStart = col;
+          else if (v.includes('date end')) colMap.borrowDateEnd = col;
+          else if (v === 'project') colMap.borrowProject = col;
         });
 
         if (!colMap.productName) continue;
@@ -169,8 +183,9 @@ excelRouter.post(
               ? await prisma.sparePart.findFirst({ where: { serialNumber } })
               : null;
 
+            let partId: string;
             if (existing) {
-              await prisma.sparePart.update({
+              const up = await prisma.sparePart.update({
                 where: { id: existing.id },
                 data: {
                   siteId: sheetSiteId,
@@ -186,9 +201,10 @@ excelRouter.post(
                   remark,
                 },
               });
+              partId = up.id;
               updated++;
             } else {
-              await prisma.sparePart.create({
+              const cr = await prisma.sparePart.create({
                 data: {
                   siteId: sheetSiteId,
                   equipmentTypeId: equipmentType.id,
@@ -203,7 +219,49 @@ excelRouter.post(
                   remark,
                 },
               });
+              partId = cr.id;
               imported++;
+            }
+
+            // ── Borrow data (columns Name / Date Start / Date End / Project) ──
+            const borrowerName = String(cv(row, colMap.borrowerName) ?? '').trim();
+            const looksLikeDate = /^\d+[/\-]\d+[/\-]\d+$/.test(borrowerName);
+            if (borrowerName && !looksLikeDate) {
+              const cleanName = borrowerName.replace(/^[PN]'\s*/i, '').trim();
+              let borrower = await prisma.user.findFirst({
+                where: { name: { contains: cleanName, mode: 'insensitive' } },
+              });
+              if (!borrower && cleanName !== borrowerName) {
+                borrower = await prisma.user.findFirst({
+                  where: { name: { contains: borrowerName, mode: 'insensitive' } },
+                });
+              }
+              const borrowerId = borrower?.id ?? req.user!.id;
+              const borrowerRemark = borrower ? null : `ผู้ยืม (นำเข้า): ${borrowerName}`;
+
+              const dateStart = parseDate(cv(row, colMap.borrowDateStart));
+              const dateEnd = parseDate(cv(row, colMap.borrowDateEnd));
+              const borrowProject = String(cv(row, colMap.borrowProject) ?? '').trim() || null;
+
+              const existingBorrow = await prisma.borrowTransaction.findFirst({
+                where: { sparePartId: partId, status: { in: ['APPROVED', 'PENDING'] } },
+              });
+              if (!existingBorrow) {
+                await prisma.borrowTransaction.create({
+                  data: {
+                    sparePartId: partId,
+                    borrowerId,
+                    approverId: req.user!.id,
+                    status: dateEnd ? 'RETURNED' : 'APPROVED',
+                    project: borrowProject,
+                    dateStart,
+                    expectedReturn: dateEnd,
+                    actualReturn: dateEnd,
+                    borrowerRemark,
+                  },
+                });
+                borrowsImported++;
+              }
             }
           } catch (rowErr) {
             errors.push(`Row ${r} (${productName}): ${(rowErr as Error).message}`);
@@ -327,7 +385,7 @@ excelRouter.post(
         }
       }
 
-      res.json({ imported, updated, skipped, ordersImported, errors });
+      res.json({ imported, updated, skipped, ordersImported, borrowsImported, errors });
     } catch (err) {
       console.error('[IMPORT ERROR]', err);
       next(err);
