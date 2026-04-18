@@ -19,6 +19,61 @@ sitesRouter.get('/', async (_req, res, next) => {
   }
 });
 
+// GET /api/sites/stats — sites with spare-part & order counts
+sitesRouter.get('/stats', async (_req, res, next) => {
+  try {
+    const sites = await prisma.site.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+      include: {
+        _count: { select: { spareParts: true, additionalOrders: true } },
+      },
+    });
+
+    // Status breakdown per site
+    const statusGroups = await prisma.sparePart.groupBy({
+      by: ['siteId', 'status'],
+      _count: { _all: true },
+    });
+
+    const orderStatusGroups = await prisma.additionalOrder.groupBy({
+      by: ['siteId', 'status'],
+      _count: { _all: true },
+    });
+
+    const result = sites.map((site) => {
+      const partsByStatus = statusGroups
+        .filter((g) => g.siteId === site.id)
+        .reduce<Record<string, number>>((acc, g) => {
+          acc[g.status] = g._count._all;
+          return acc;
+        }, {});
+
+      const ordersByStatus = orderStatusGroups
+        .filter((g) => g.siteId === site.id)
+        .reduce<Record<string, number>>((acc, g) => {
+          acc[g.status] = g._count._all;
+          return acc;
+        }, {});
+
+      return {
+        id: site.id,
+        code: site.code,
+        name: site.name,
+        sortOrder: site.sortOrder,
+        totalParts: site._count.spareParts,
+        totalOrders: site._count.additionalOrders,
+        partsByStatus,
+        ordersByStatus,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/sites/:id
 sitesRouter.get('/:id', async (req, res, next) => {
   try {

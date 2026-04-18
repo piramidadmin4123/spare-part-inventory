@@ -13,6 +13,13 @@ export function useSites() {
   return useQuery({ queryKey: SITES_KEY, queryFn: () => sitesApi.list().then((r) => r.data) });
 }
 
+export function useSiteStats() {
+  return useQuery({
+    queryKey: [...SITES_KEY, 'stats'],
+    queryFn: () => sitesApi.stats().then((r) => r.data),
+  });
+}
+
 export function useCreateSite() {
   const qc = useQueryClient();
   return useMutation({

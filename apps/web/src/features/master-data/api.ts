@@ -9,8 +9,20 @@ import type {
   UpdateBrandInput,
 } from '@spare-part/shared';
 
+export interface SiteStats {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+  totalParts: number;
+  totalOrders: number;
+  partsByStatus: Record<string, number>;
+  ordersByStatus: Record<string, number>;
+}
+
 export const sitesApi = {
   list: () => apiClient.get<Site[]>('/api/sites'),
+  stats: () => apiClient.get<SiteStats[]>('/api/sites/stats'),
   create: (data: CreateSiteInput) => apiClient.post<Site>('/api/sites', data),
   update: (id: string, data: UpdateSiteInput) => apiClient.patch<Site>(`/api/sites/${id}`, data),
   remove: (id: string) => apiClient.delete<{ message: string }>(`/api/sites/${id}`),
