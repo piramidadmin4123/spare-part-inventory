@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -14,9 +14,11 @@ import {
   Upload,
   Download,
   FileSpreadsheet,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
-import { borrowRequestSchema } from '@spare-part/shared';
-import type { BorrowRequestInput, BorrowTransaction } from '@spare-part/shared';
+import { borrowRequestSchema, editBorrowSchema } from '@spare-part/shared';
+import type { BorrowRequestInput, EditBorrowInput, BorrowTransaction } from '@spare-part/shared';
 import { excelApi } from '@/features/excel/api';
 import type { BorrowImportResult } from '@/features/excel/api';
 import { toast } from 'sonner';
@@ -64,6 +66,8 @@ import {
   useRejectBorrow,
   useReturnBorrow,
   useCancelBorrow,
+  useUpdateBorrow,
+  useDeleteBorrow,
   BORROW_KEY,
 } from '@/features/borrow/useBorrow';
 import { useQueryClient } from '@tanstack/react-query';
@@ -111,6 +115,7 @@ function CreateBorrowDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const { user } = useAuthStore();
   const createBorrow = useCreateBorrow();
   const { data: partsData } = useSpareParts({ status: 'IN_STOCK', limit: 100 });
   const parts = partsData?.data ?? [];
@@ -122,12 +127,18 @@ function CreateBorrowDialog({
     watch,
     reset,
     formState: { errors },
-  } = useForm<BorrowRequestInput>({ resolver: zodResolver(borrowRequestSchema) });
+  } = useForm<BorrowRequestInput>({
+    resolver: zodResolver(borrowRequestSchema),
+    defaultValues: {
+      borrowerName: user?.name ?? '',
+      borrowerEmail: user?.email ?? '',
+    },
+  });
 
   function onSubmit(data: BorrowRequestInput) {
     createBorrow.mutate(data, {
       onSuccess: () => {
-        reset();
+        reset({ borrowerName: user?.name ?? '', borrowerEmail: user?.email ?? '' });
         onOpenChange(false);
       },
     });
@@ -137,7 +148,7 @@ function CreateBorrowDialog({
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) reset();
+        if (!v) reset({ borrowerName: user?.name ?? '', borrowerEmail: user?.email ?? '' });
         onOpenChange(v);
       }}
     >
@@ -170,8 +181,25 @@ function CreateBorrowDialog({
             )}
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>ชื่อผู้ยืม *</Label>
+              <Input {...register('borrowerName')} placeholder="ชื่อ-นามสกุล" />
+              {errors.borrowerName && (
+                <p className="text-xs text-destructive">{errors.borrowerName.message}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label>Email ผู้ยืม *</Label>
+              <Input type="email" {...register('borrowerEmail')} placeholder="email@example.com" />
+              {errors.borrowerEmail && (
+                <p className="text-xs text-destructive">{errors.borrowerEmail.message}</p>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-1">
-            <Label>Project / งาน *</Label>
+            <Label>Project / งาน</Label>
             <Input {...register('project')} placeholder="เช่น Capella Hotel Migration" />
             {errors.project && <p className="text-xs text-destructive">{errors.project.message}</p>}
           </div>
@@ -304,7 +332,7 @@ function ReturnDialog({
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            <strong>{tx.sparePart.modelCode}</strong> — {tx.borrower.name}
+            <strong>{tx.sparePart.modelCode}</strong> — {tx.borrowerName ?? tx.borrower.name}
           </p>
           <div className="space-y-1">
             <Label>วันที่คืน *</Label>
@@ -345,6 +373,124 @@ function ReturnDialog({
             ยืนยันคืน
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Edit Borrow Dialog ─────────────────────────────────────────────────────
+
+function toDatetimeLocal(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function EditBorrowDialog({
+  open,
+  onOpenChange,
+  tx,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  tx: BorrowTransaction | null;
+}) {
+  const updateBorrow = useUpdateBorrow();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<EditBorrowInput>({
+    resolver: zodResolver(editBorrowSchema),
+  });
+
+  useEffect(() => {
+    if (tx) {
+      reset({
+        borrowerName: tx.borrowerName ?? tx.borrower.name,
+        borrowerEmail: tx.borrowerEmail ?? tx.borrower.email,
+        project: tx.project ?? '',
+        dateStart: toDatetimeLocal(tx.dateStart),
+        expectedReturn: toDatetimeLocal(tx.expectedReturn),
+        borrowerRemark: tx.borrowerRemark ?? '',
+      });
+    }
+  }, [tx, reset]);
+
+  if (!tx) return null;
+
+  function onSubmit(data: EditBorrowInput) {
+    updateBorrow.mutate({ id: tx!.id, data }, { onSuccess: () => onOpenChange(false) });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>แก้ไขคำขอยืม</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="rounded-md bg-muted px-3 py-2 text-sm">
+            <span className="font-mono font-medium">{tx.sparePart.modelCode}</span>
+            <span className="ml-2 text-muted-foreground">[{tx.sparePart.site.code}]</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>ชื่อผู้ยืม *</Label>
+              <Input {...register('borrowerName')} placeholder="ชื่อ-นามสกุล" />
+              {errors.borrowerName && (
+                <p className="text-xs text-destructive">{errors.borrowerName.message}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label>Email ผู้ยืม *</Label>
+              <Input type="email" {...register('borrowerEmail')} placeholder="email@example.com" />
+              {errors.borrowerEmail && (
+                <p className="text-xs text-destructive">{errors.borrowerEmail.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Project / งาน</Label>
+            <Input {...register('project')} placeholder="เช่น Capella Hotel Migration" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>วันที่เริ่มยืม</Label>
+              <Input type="datetime-local" {...register('dateStart')} />
+            </div>
+            <div className="space-y-1">
+              <Label>วันที่คาดว่าจะคืน</Label>
+              <Input type="datetime-local" {...register('expectedReturn')} />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label>หมายเหตุ</Label>
+            <Textarea {...register('borrowerRemark')} rows={2} placeholder="(ไม่บังคับ)" />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={updateBorrow.isPending}
+            >
+              ยกเลิก
+            </Button>
+            <Button type="submit" disabled={updateBorrow.isPending}>
+              {updateBorrow.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              บันทึก
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -505,11 +651,14 @@ export function BorrowPage() {
   const [rejectTarget, setRejectTarget] = useState<BorrowTransaction | null>(null);
   const [returnTarget, setReturnTarget] = useState<BorrowTransaction | null>(null);
   const [cancelTarget, setCancelTarget] = useState<BorrowTransaction | null>(null);
+  const [editTarget, setEditTarget] = useState<BorrowTransaction | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BorrowTransaction | null>(null);
 
   const { data, isLoading } = useBorrows({ status: statusFilter, page, limit: LIMIT });
   const approve = useApproveBorrow();
   const reject = useRejectBorrow();
   const cancel = useCancelBorrow();
+  const deleteBorrow = useDeleteBorrow();
 
   const txs = data?.data ?? [];
   const meta = data?.meta;
@@ -572,24 +721,26 @@ export function BorrowPage() {
             <TableRow>
               <TableHead>อุปกรณ์</TableHead>
               <TableHead>Site</TableHead>
-              <TableHead>ผู้ยืม</TableHead>
+              <TableHead>ชื่อผู้ยืม</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Project</TableHead>
               <TableHead>วันที่ยืม</TableHead>
-              <TableHead>คืนภายใน</TableHead>
+              <TableHead>วันที่คืน</TableHead>
               <TableHead>สถานะ</TableHead>
+              <TableHead>ผู้อนุมัติ</TableHead>
               <TableHead className="w-36 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-16 text-center">
+                <TableCell colSpan={10} className="py-16 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : txs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-16 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="py-16 text-center text-muted-foreground">
                   ไม่พบรายการ
                 </TableCell>
               </TableRow>
@@ -600,6 +751,13 @@ export function BorrowPage() {
                   tx.status === 'APPROVED' && (isManager || tx.borrower.id === user?.id);
                 const canCancel =
                   tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
+                const canEdit =
+                  tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
+                const canDelete =
+                  tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
+
+                const displayName = tx.borrowerName ?? tx.borrower.name;
+                const displayEmail = tx.borrowerEmail || null;
 
                 return (
                   <TableRow key={tx.id} className="group">
@@ -614,7 +772,10 @@ export function BorrowPage() {
                         {tx.sparePart.site.code}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{tx.borrower.name}</TableCell>
+                    <TableCell className="text-sm">{displayName}</TableCell>
+                    <TableCell className="max-w-[160px] truncate text-xs text-muted-foreground">
+                      {displayEmail || '—'}
+                    </TableCell>
                     <TableCell className="max-w-[120px] truncate text-sm">
                       {tx.project ?? '—'}
                     </TableCell>
@@ -622,6 +783,20 @@ export function BorrowPage() {
                     <TableCell className="text-xs">{fmtDate(tx.expectedReturn)}</TableCell>
                     <TableCell>
                       <StatusBadge status={tx.status} />
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {tx.approver ? (
+                        <div>
+                          <p className="font-medium">{tx.approver.name}</p>
+                          {tx.approverRemark && (
+                            <p className="max-w-[140px] truncate text-xs text-muted-foreground">
+                              {tx.approverRemark}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
@@ -667,6 +842,28 @@ export function BorrowPage() {
                             onClick={() => setCancelTarget(tx)}
                           >
                             <Ban className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canEdit && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-blue-500 hover:text-blue-700"
+                            title="แก้ไข"
+                            onClick={() => setEditTarget(tx)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            title="ลบ"
+                            onClick={() => setDeleteTarget(tx)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
@@ -760,6 +957,40 @@ export function BorrowPage() {
         onOpenChange={(v) => !v && setReturnTarget(null)}
         tx={returnTarget}
       />
+
+      {/* Edit dialog */}
+      <EditBorrowDialog
+        open={!!editTarget}
+        onOpenChange={(v) => !v && setEditTarget(null)}
+        tx={editTarget}
+      />
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ยืนยันลบคำขอ</AlertDialogTitle>
+            <AlertDialogDescription>
+              ต้องการลบคำขอยืม <strong>{deleteTarget?.sparePart.modelCode}</strong> ใช่ไหม?
+              การดำเนินการนี้ไม่สามารถย้อนกลับได้
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBorrow.isPending}>ไม่</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteBorrow.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() =>
+                deleteTarget &&
+                deleteBorrow.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })
+              }
+            >
+              {deleteBorrow.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              ลบ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Cancel confirm */}
       <AlertDialog open={!!cancelTarget} onOpenChange={(v) => !v && setCancelTarget(null)}>

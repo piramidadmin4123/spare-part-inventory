@@ -147,10 +147,10 @@ function SitesTab() {
 
   function onSubmit(data: CreateSiteInput | UpdateSiteInput) {
     if (editing) {
-      updateSite.mutate(
-        { id: editing.id, data: data as UpdateSiteInput },
-        { onSuccess: () => setDialogOpen(false) }
-      );
+      const clean = Object.fromEntries(
+        Object.entries(data).filter(([, v]) => v !== undefined && v !== '')
+      ) as UpdateSiteInput;
+      updateSite.mutate({ id: editing.id, data: clean }, { onSuccess: () => setDialogOpen(false) });
     } else {
       createSite.mutate(data as CreateSiteInput, { onSuccess: () => setDialogOpen(false) });
     }
@@ -223,7 +223,7 @@ function SitesTab() {
       </Table>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent key={editing?.id ?? 'new'}>
           <DialogHeader>
             <DialogTitle>{editing ? 'แก้ไข Site' : 'เพิ่ม Site ใหม่'}</DialogTitle>
           </DialogHeader>
@@ -314,10 +314,10 @@ function EquipmentTypesTab() {
 
   function onSubmit(data: CreateEquipmentTypeInput | UpdateEquipmentTypeInput) {
     if (editing) {
-      updateType.mutate(
-        { id: editing.id, data: data as UpdateEquipmentTypeInput },
-        { onSuccess: () => setDialogOpen(false) }
-      );
+      const clean = Object.fromEntries(
+        Object.entries(data).filter(([, v]) => v !== undefined && v !== '')
+      ) as UpdateEquipmentTypeInput;
+      updateType.mutate({ id: editing.id, data: clean }, { onSuccess: () => setDialogOpen(false) });
     } else {
       createType.mutate(data as CreateEquipmentTypeInput, {
         onSuccess: () => setDialogOpen(false),
@@ -390,7 +390,7 @@ function EquipmentTypesTab() {
       </Table>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent key={editing?.id ?? 'new'}>
           <DialogHeader>
             <DialogTitle>{editing ? 'แก้ไขประเภทอุปกรณ์' : 'เพิ่มประเภทอุปกรณ์ใหม่'}</DialogTitle>
           </DialogHeader>
@@ -486,8 +486,11 @@ function BrandsTab() {
 
   function onSubmit(data: CreateBrandInput | UpdateBrandInput) {
     if (editing) {
+      const clean = Object.fromEntries(
+        Object.entries(data).filter(([, v]) => v !== undefined && v !== '')
+      ) as UpdateBrandInput;
       updateBrand.mutate(
-        { id: editing.id, data: data as UpdateBrandInput },
+        { id: editing.id, data: clean },
         { onSuccess: () => setDialogOpen(false) }
       );
     } else {
@@ -552,7 +555,7 @@ function BrandsTab() {
       </Table>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent key={editing?.id ?? 'new'}>
           <DialogHeader>
             <DialogTitle>{editing ? 'แก้ไข Brand' : 'เพิ่ม Brand ใหม่'}</DialogTitle>
           </DialogHeader>

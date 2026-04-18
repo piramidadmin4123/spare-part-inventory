@@ -10,6 +10,8 @@ export interface AuthResponse {
 export const authApi = {
   login: (data: LoginInput) => apiClient.post<AuthResponse>('/api/auth/login', data),
   register: (data: RegisterInput) => apiClient.post<AuthResponse>('/api/auth/register', data),
+  microsoftLogin: (idToken: string) =>
+    apiClient.post<AuthResponse>('/api/auth/microsoft', { idToken }),
   logout: () => apiClient.post('/api/auth/logout'),
   me: () => apiClient.get<User>('/api/auth/me'),
   updateProfile: (data: Partial<Pick<User, 'name' | 'phone'>>) =>

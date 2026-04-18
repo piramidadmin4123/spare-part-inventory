@@ -99,6 +99,8 @@ export interface BorrowTransaction {
   borrower: Pick<User, 'id' | 'name' | 'email' | 'role'>;
   approver?: Pick<User, 'id' | 'name'> | null;
   status: BorrowStatus;
+  borrowerName?: string | null;
+  borrowerEmail?: string | null;
   project?: string | null;
   dateStart?: string | null;
   dateEnd?: string | null;

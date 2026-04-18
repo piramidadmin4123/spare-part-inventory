@@ -9,8 +9,15 @@ import {
   returnSchema,
   rejectSchema,
   cancelSchema,
+  editBorrowSchema,
 } from '@spare-part/shared';
 import type { Prisma } from '@prisma/client';
+import {
+  notifyNewBorrow,
+  notifyBorrowApproved,
+  notifyBorrowRejected,
+  notifyBorrowReturned,
+} from '../../lib/notify.js';
 
 export const borrowRouter: IRouter = Router();
 
@@ -92,6 +99,8 @@ borrowRouter.post('/', requireRole('ADMIN', 'MANAGER', 'TECHNICIAN'), async (req
       data: {
         sparePartId: parsed.data.sparePartId,
         borrowerId: req.user!.id,
+        borrowerName: parsed.data.borrowerName,
+        borrowerEmail: parsed.data.borrowerEmail,
         project: parsed.data.project,
         dateStart: parsed.data.dateStart ? new Date(parsed.data.dateStart) : null,
         expectedReturn: parsed.data.expectedReturn ? new Date(parsed.data.expectedReturn) : null,
@@ -102,6 +111,80 @@ borrowRouter.post('/', requireRole('ADMIN', 'MANAGER', 'TECHNICIAN'), async (req
     });
 
     res.status(201).json(tx);
+
+    notifyNewBorrow({
+      id: tx.id,
+      modelCode: tx.sparePart.modelCode,
+      productName: tx.sparePart.productName,
+      siteCode: tx.sparePart.site.code,
+      borrowerName: tx.borrowerName ?? tx.borrower.name,
+      borrowerEmail: tx.borrowerEmail ?? tx.borrower.email,
+      project: tx.project,
+    }).catch(() => {});
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/borrow/:id — edit PENDING request
+borrowRouter.patch('/:id', async (req, res, next) => {
+  try {
+    const id = req.params.id as string;
+    const tx = await prisma.borrowTransaction.findUnique({ where: { id } });
+    if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
+    if (tx.status !== 'PENDING')
+      throw new AppError(409, 'CONFLICT', 'Only PENDING requests can be edited');
+
+    const user = req.user!;
+    if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
+      throw new AppError(403, 'FORBIDDEN', 'You can only edit your own requests');
+
+    const parsed = editBorrowSchema.safeParse(req.body);
+    if (!parsed.success)
+      throw new AppError(400, 'VALIDATION_ERROR', 'Invalid input', parsed.error.issues);
+
+    const updated = await prisma.borrowTransaction.update({
+      where: { id },
+      data: {
+        ...(parsed.data.borrowerName !== undefined && { borrowerName: parsed.data.borrowerName }),
+        ...(parsed.data.borrowerEmail !== undefined && {
+          borrowerEmail: parsed.data.borrowerEmail,
+        }),
+        ...(parsed.data.project !== undefined && { project: parsed.data.project }),
+        ...(parsed.data.dateStart !== undefined && {
+          dateStart: parsed.data.dateStart ? new Date(parsed.data.dateStart) : null,
+        }),
+        ...(parsed.data.expectedReturn !== undefined && {
+          expectedReturn: parsed.data.expectedReturn ? new Date(parsed.data.expectedReturn) : null,
+        }),
+        ...(parsed.data.borrowerRemark !== undefined && {
+          borrowerRemark: parsed.data.borrowerRemark,
+        }),
+      },
+      include: borrowInclude,
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/borrow/:id — PENDING only
+borrowRouter.delete('/:id', async (req, res, next) => {
+  try {
+    const id = req.params.id as string;
+    const tx = await prisma.borrowTransaction.findUnique({ where: { id } });
+    if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
+    if (tx.status !== 'PENDING')
+      throw new AppError(409, 'CONFLICT', 'Only PENDING requests can be deleted');
+
+    const user = req.user!;
+    if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
+      throw new AppError(403, 'FORBIDDEN', 'You can only delete your own requests');
+
+    await prisma.borrowTransaction.delete({ where: { id } });
+    res.status(204).end();
   } catch (err) {
     next(err);
   }
@@ -123,6 +206,8 @@ borrowRouter.patch('/:id/approve', requireRole('ADMIN', 'MANAGER'), async (req, 
         'CONFLICT',
         `Cannot approve a transaction with status "${tx.status}"`
       );
+    if (tx.borrowerId === req.user!.id)
+      throw new AppError(403, 'FORBIDDEN', 'You cannot approve your own borrow request');
 
     const [updated] = await prisma.$transaction([
       prisma.borrowTransaction.update({
@@ -141,6 +226,17 @@ borrowRouter.patch('/:id/approve', requireRole('ADMIN', 'MANAGER'), async (req, 
     ]);
 
     res.json(updated);
+
+    notifyBorrowApproved({
+      id: updated.id,
+      modelCode: updated.sparePart.modelCode,
+      productName: updated.sparePart.productName,
+      siteCode: updated.sparePart.site.code,
+      borrowerName: updated.borrowerName ?? updated.borrower.name,
+      borrowerEmail: updated.borrowerEmail ?? updated.borrower.email,
+      project: updated.project,
+      approverName: updated.approver?.name ?? req.user!.email,
+    }).catch(() => {});
   } catch (err) {
     next(err);
   }
@@ -170,6 +266,18 @@ borrowRouter.patch('/:id/reject', requireRole('ADMIN', 'MANAGER'), async (req, r
     });
 
     res.json(updated);
+
+    notifyBorrowRejected({
+      id: updated.id,
+      modelCode: updated.sparePart.modelCode,
+      productName: updated.sparePart.productName,
+      siteCode: updated.sparePart.site.code,
+      borrowerName: updated.borrowerName ?? updated.borrower.name,
+      borrowerEmail: updated.borrowerEmail ?? updated.borrower.email,
+      project: updated.project,
+      approverName: updated.approver?.name ?? req.user!.email,
+      reason: parsed.data.approverRemark,
+    }).catch(() => {});
   } catch (err) {
     next(err);
   }
@@ -210,6 +318,16 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
     ]);
 
     res.json(updated);
+
+    notifyBorrowReturned({
+      id: updated.id,
+      modelCode: updated.sparePart.modelCode,
+      productName: updated.sparePart.productName,
+      siteCode: updated.sparePart.site.code,
+      borrowerName: updated.borrowerName ?? updated.borrower.name,
+      borrowerEmail: updated.borrowerEmail ?? updated.borrower.email,
+      project: updated.project,
+    }).catch(() => {});
   } catch (err) {
     next(err);
   }

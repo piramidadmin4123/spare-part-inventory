@@ -18,9 +18,10 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@spare-part/shared": "workspace:*",
     "@prisma/client": "^6.8.2",
+    "@spare-part/shared": "workspace:*",
     "@supabase/supabase-js": "^2.49.4",
+    "@types/nodemailer": "^8.0.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
@@ -29,8 +30,11 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^4.0.1",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.2",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.5",
     "zod": "^3.24.4"
   },
   "devDependencies": {
@@ -41,6 +45,7 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.15.18",
+    "@types/node-cron": "^3.0.11",
     "prisma": "^6.8.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"

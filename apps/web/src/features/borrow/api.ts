@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import type { BorrowTransaction, PaginatedResponse } from '@spare-part/shared';
-import type { BorrowRequestInput } from '@spare-part/shared';
+import type { BorrowRequestInput, EditBorrowInput } from '@spare-part/shared';
 
 export interface BorrowFilters {
   status?: string;
@@ -23,4 +23,7 @@ export const borrowApi = {
     apiClient.patch<BorrowTransaction>(`/api/borrow/${id}/return`, data),
   cancel: (id: string, data?: { borrowerRemark?: string }) =>
     apiClient.patch<BorrowTransaction>(`/api/borrow/${id}/cancel`, data ?? {}),
+  update: (id: string, data: EditBorrowInput) =>
+    apiClient.patch<BorrowTransaction>(`/api/borrow/${id}`, data),
+  remove: (id: string) => apiClient.delete<void>(`/api/borrow/${id}`),
 };

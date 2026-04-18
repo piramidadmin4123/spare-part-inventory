@@ -10,9 +10,10 @@ export const createSparePartSchema = z.object({
   serialNumber: z.string().max(100).optional().nullable(),
   macAddress: z
     .string()
-    .regex(/^([0-9A-F]{2}[:-]){5}([0-9A-F]{2})$/i)
+    .regex(/^([0-9A-Fa-f]{2}[:\-.]){5}[0-9A-Fa-f]{2}$/, 'Invalid MAC address')
     .optional()
-    .nullable(),
+    .nullable()
+    .or(z.literal('').transform(() => null)),
   quantity: z.number().int().min(0).default(1),
   minStock: z.number().int().min(0).default(1),
   cost: z.number().nonnegative().optional().nullable(),

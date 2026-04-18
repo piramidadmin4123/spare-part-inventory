@@ -14,6 +14,7 @@ import { borrowRouter } from './modules/borrow/borrow.router.js';
 import { excelRouter } from './modules/excel/excel.router.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.router.js';
 import { additionalOrdersRouter } from './modules/additional-orders/additional-orders.router.js';
+import { startScheduler } from './lib/scheduler.js';
 
 const app: Express = express();
 const PORT = process.env.PORT ?? 3001;
@@ -63,6 +64,7 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.info(`API server running on http://localhost:${PORT}`);
+  startScheduler();
 });
 
 export default app;

@@ -167,14 +167,18 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
   const isPending = createPart.isPending || updatePart.isPending;
 
   function onSubmit(data: CreateSparePartInput | UpdateSparePartInput) {
-    const clean = Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, v === '' ? null : v])
-    ) as CreateSparePartInput | UpdateSparePartInput;
-
     if (editing) {
-      updatePart.mutate({ id: editing.id, data: clean as UpdateSparePartInput }, { onSuccess });
+      const clean = Object.fromEntries(
+        Object.entries(data).filter(
+          ([, v]) => v !== undefined && v !== '' && !(typeof v === 'number' && isNaN(v))
+        )
+      ) as UpdateSparePartInput;
+      updatePart.mutate({ id: editing.id, data: clean }, { onSuccess });
     } else {
-      createPart.mutate(clean as CreateSparePartInput, { onSuccess });
+      const clean = Object.fromEntries(
+        Object.entries(data).map(([k, v]) => [k, v === '' ? null : v])
+      ) as CreateSparePartInput;
+      createPart.mutate(clean, { onSuccess });
     }
   }
 
@@ -316,7 +320,9 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
               <Label>ราคา (บาท)</Label>
               <Input
                 type="number"
-                {...register('cost', { valueAsNumber: true })}
+                {...register('cost', {
+                  setValueAs: (v) => (v === '' || v === null ? undefined : Number(v)),
+                })}
                 min={0}
                 step="0.01"
               />
@@ -826,6 +832,7 @@ export function InventoryPage() {
 
       {/* Create/Edit Sheet */}
       <SparePartForm
+        key={editing?.id ?? 'new'}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         editing={editing}

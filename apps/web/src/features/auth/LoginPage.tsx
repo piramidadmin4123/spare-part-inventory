@@ -6,10 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useLogin } from './useAuth';
+import { useLogin, useMicrosoftLogin } from './useAuth';
+
+function MicrosoftIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" className="h-4 w-4">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+      <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+    </svg>
+  );
+}
 
 export function LoginPage() {
   const login = useLogin();
+  const { loginWithMicrosoft, loading: msLoading } = useMicrosoftLogin();
   const {
     register,
     handleSubmit,
@@ -17,13 +29,15 @@ export function LoginPage() {
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md shadow-lg">
+    <div className="flex min-h-screen items-center justify-center bg-zinc-900 px-4">
+      <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-            <Lock className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Pyramid Solution</CardTitle>
+          <img
+            src="/piramid-logo.png"
+            alt="Piramid Solution"
+            className="mx-auto mb-2 h-24 w-24 object-contain"
+          />
+          <CardTitle className="text-2xl font-bold">Piramid Solution</CardTitle>
           <CardDescription>Inventory Spare Part Management</CardDescription>
         </CardHeader>
 
@@ -74,6 +88,26 @@ export function LoginPage() {
               )}
             </Button>
           </form>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-muted" />
+            </div>
+            <div className="relative flex justify-center text-xs text-muted-foreground">
+              <span className="bg-white px-2">หรือ</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2"
+            onClick={loginWithMicrosoft}
+            disabled={msLoading}
+          >
+            {msLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MicrosoftIcon />}
+            เข้าสู่ระบบด้วย Microsoft (O365)
+          </Button>
         </CardContent>
       </Card>
     </div>

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { borrowApi, type BorrowFilters } from './api';
-import type { BorrowRequestInput } from '@spare-part/shared';
+import type { BorrowRequestInput, EditBorrowInput } from '@spare-part/shared';
 
 export const BORROW_KEY = ['borrow'] as const;
 
@@ -82,6 +82,33 @@ export function useCancelBorrow() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: BORROW_KEY });
       toast.success('ยกเลิกคำขอแล้ว');
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? 'เกิดข้อผิดพลาด'),
+  });
+}
+
+export function useUpdateBorrow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: EditBorrowInput }) =>
+      borrowApi.update(id, data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: BORROW_KEY });
+      toast.success('แก้ไขคำขอสำเร็จ');
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? 'เกิดข้อผิดพลาด'),
+  });
+}
+
+export function useDeleteBorrow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => borrowApi.remove(id).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: BORROW_KEY });
+      toast.success('ลบคำขอแล้ว');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
       toast.error(err.response?.data?.message ?? 'เกิดข้อผิดพลาด'),

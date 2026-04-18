@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi } from './api';
+import { msalInstance, msLoginRequest, isMsalConfigured } from './msal';
 import type { LoginInput, RegisterInput } from '@spare-part/shared';
 
 export function useAuth() {
@@ -44,6 +46,29 @@ export function useRegister() {
       toast.error(msg);
     },
   });
+}
+
+export function useMicrosoftLogin() {
+  const [loading, setLoading] = useState(false);
+
+  async function loginWithMicrosoft() {
+    if (!isMsalConfigured) {
+      toast.error('Microsoft login ยังไม่ได้ตั้งค่า (ติดต่อ Admin)');
+      return;
+    }
+    setLoading(true);
+    try {
+      await msalInstance.initialize();
+      await msalInstance.loginRedirect(msLoginRequest);
+      // Page will redirect — loading stays true until redirect
+    } catch (err: unknown) {
+      console.error('[MS Login Error]', err);
+      toast.error('เข้าสู่ระบบด้วย Microsoft ไม่สำเร็จ');
+      setLoading(false);
+    }
+  }
+
+  return { loginWithMicrosoft, loading };
 }
 
 export function useLogout() {

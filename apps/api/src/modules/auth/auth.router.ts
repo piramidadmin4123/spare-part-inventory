@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Router as IRouter } from 'express';
 import { loginSchema, registerSchema, updateProfileSchema } from '@spare-part/shared';
 import { requireAuth } from '../../middleware/auth.js';
+import { AppError } from '../../middleware/error-handler.js';
 import * as authService from './auth.service.js';
 
 export const authRouter: IRouter = Router();
@@ -20,6 +21,17 @@ authRouter.post('/login', async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
     const result = await authService.login(input);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post('/microsoft', async (req, res, next) => {
+  try {
+    const { idToken } = req.body as { idToken?: string };
+    if (!idToken) return next(new AppError(400, 'VALIDATION_ERROR', 'idToken is required'));
+    const result = await authService.loginWithMicrosoft(idToken);
     res.json(result);
   } catch (err) {
     next(err);

@@ -37,9 +37,10 @@ export function AppLayout() {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <aside className="flex w-60 flex-col border-r bg-white">
-        <div className="flex h-14 items-center border-b px-4">
-          <span className="text-sm font-semibold text-foreground">Pyramid Solution</span>
+      <aside className="flex w-60 flex-col bg-zinc-900">
+        <div className="flex h-14 items-center gap-2 border-b border-zinc-800 px-4">
+          <img src="/piramid-logo.png" alt="Piramid Solution" className="h-8 w-8 object-contain" />
+          <span className="text-sm font-semibold text-white">Piramid Solution</span>
         </div>
 
         <nav className="flex-1 space-y-1 p-3">
@@ -51,8 +52,8 @@ export function AppLayout() {
                 cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    ? 'bg-amber-500 font-medium text-black'
+                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
                 )
               }
             >
@@ -68,8 +69,8 @@ export function AppLayout() {
                 cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    ? 'bg-amber-500 font-medium text-black'
+                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
                 )
               }
             >
@@ -80,21 +81,25 @@ export function AppLayout() {
         </nav>
 
         {/* User footer */}
-        <div className="border-t p-3">
+        <div className="border-t border-zinc-800 p-3">
           <div className="mb-2 flex items-center gap-2 rounded-md px-2 py-1">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-black">
               {user?.name?.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium">{user?.name}</p>
-              <Badge variant="secondary" className="mt-0.5 h-4 text-[10px]">
+              <p className="truncate text-xs font-medium text-white">{user?.name}</p>
+              <Badge className="mt-0.5 h-4 bg-zinc-700 text-[10px] text-zinc-300 hover:bg-zinc-700">
                 {ROLE_LABELS[user?.role ?? ''] ?? user?.role}
               </Badge>
             </div>
           </div>
           <div className="flex gap-1">
             <NavLink to="/profile" className="flex-1">
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+              >
                 <User className="h-3.5 w-3.5" />
                 <span className="text-xs">Profile</span>
               </Button>
@@ -103,7 +108,7 @@ export function AppLayout() {
               variant="ghost"
               size="sm"
               onClick={logout}
-              className="gap-2 text-muted-foreground hover:text-destructive"
+              className="gap-2 text-zinc-400 hover:bg-zinc-800 hover:text-red-400"
             >
               <LogOut className="h-3.5 w-3.5" />
             </Button>
