@@ -11,6 +11,15 @@ export function useAdditionalOrders(filters: AdditionalOrderFilters = {}) {
   });
 }
 
+export function useOrderImage(id: string | null) {
+  return useQuery({
+    queryKey: [...AO_KEY, 'image', id],
+    queryFn: () => additionalOrdersApi.getImage(id!).then((r) => r.data.imageData),
+    enabled: !!id,
+    staleTime: Infinity,
+  });
+}
+
 export function useUpdateOrderStatus() {
   const qc = useQueryClient();
   return useMutation({

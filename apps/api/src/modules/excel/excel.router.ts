@@ -392,6 +392,26 @@ excelRouter.post(
           return v;
         };
 
+        // Build row → base64 image map from sheet images
+        const rowImageMap = new Map<number, string>();
+        const wbMedia = (
+          wb as unknown as { model?: { media?: Array<{ buffer: Buffer; extension: string }> } }
+        ).model?.media;
+        if (wbMedia) {
+          for (const placement of ws.getImages()) {
+            const nativeRow = placement.range?.tl?.nativeRow;
+            if (nativeRow == null) continue;
+            const oneIndexedRow = nativeRow + 1;
+            if (rowImageMap.has(oneIndexedRow)) continue;
+            const imgMedia = wbMedia[placement.imageId as unknown as number];
+            if (!imgMedia?.buffer) continue;
+            rowImageMap.set(
+              oneIndexedRow,
+              `data:image/${imgMedia.extension};base64,${imgMedia.buffer.toString('base64')}`
+            );
+          }
+        }
+
         for (let r = aoHeader + 1; r <= ws.rowCount; r++) {
           const row = ws.getRow(r);
           const productName = String(aoCv(row, aoCol.productName) ?? '').trim();
@@ -414,6 +434,8 @@ excelRouter.post(
               : null;
           const remark = String(aoCv(row, aoCol.remark) ?? '').trim() || null;
 
+          const imageData = rowImageMap.get(r) ?? null;
+
           try {
             let brand = brandName
               ? await prisma.brand.findFirst({ where: { name: brandName } })
@@ -433,6 +455,7 @@ excelRouter.post(
                 totalCost,
                 status: 'PENDING',
                 remark,
+                imageData,
               },
             });
             ordersImported++;

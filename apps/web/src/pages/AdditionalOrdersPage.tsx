@@ -6,10 +6,10 @@ import {
   ChevronRight,
   Search,
   ShoppingCart,
-  CheckCircle2,
   Clock,
   XCircle,
   PackageCheck,
+  ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,8 +39,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   useAdditionalOrders,
+  useOrderImage,
   useUpdateOrderStatus,
   useDeleteOrder,
 } from '@/features/additional-orders/useAdditionalOrders';
@@ -88,6 +90,42 @@ function StatusBadge({ status }: { status: AdditionalOrder['status'] }) {
   );
 }
 
+function ImagePreviewDialog({
+  orderId,
+  productName,
+  open,
+  onClose,
+}: {
+  orderId: string;
+  productName: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { data: imageData, isLoading } = useOrderImage(open ? orderId : null);
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="line-clamp-2 text-sm">{productName}</DialogTitle>
+        </DialogHeader>
+        <div className="flex min-h-48 items-center justify-center">
+          {isLoading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          ) : imageData ? (
+            <img
+              src={imageData}
+              alt={productName}
+              className="max-h-96 max-w-full rounded object-contain"
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">ไม่พบรูปภาพ</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AdditionalOrdersPage() {
   const { user } = useAuthStore();
   const canEdit = user?.role === 'ADMIN' || user?.role === 'MANAGER';
@@ -97,6 +135,9 @@ export function AdditionalOrdersPage() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<AdditionalOrder | null>(null);
+  const [imagePreview, setImagePreview] = useState<{ id: string; productName: string } | null>(
+    null
+  );
 
   const filters = {
     ...(search && { search }),
@@ -119,6 +160,8 @@ export function AdditionalOrdersPage() {
     if (n == null) return '—';
     return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+
+  const colSpan = canEdit ? 13 : 12;
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
@@ -200,22 +243,20 @@ export function AdditionalOrdersPage() {
               <TableHead className="text-right">Total Cost</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Remark</TableHead>
+              <TableHead className="w-12 text-center">รูป</TableHead>
               {canEdit && <TableHead className="w-16 text-center">จัดการ</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={canEdit ? 12 : 11} className="py-10 text-center">
+                <TableCell colSpan={colSpan} className="py-10 text-center">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : orders.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={canEdit ? 12 : 11}
-                  className="py-10 text-center text-muted-foreground"
-                >
+                <TableCell colSpan={colSpan} className="py-10 text-center text-muted-foreground">
                   ไม่มีข้อมูล
                 </TableCell>
               </TableRow>
@@ -264,6 +305,22 @@ export function AdditionalOrdersPage() {
                   </TableCell>
                   <TableCell className="max-w-[160px] text-xs text-muted-foreground">
                     <p className="line-clamp-2">{order.remark ?? '—'}</p>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {order.hasImage ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-blue-500 hover:bg-blue-50"
+                        onClick={() =>
+                          setImagePreview({ id: order.id, productName: order.productName })
+                        }
+                      >
+                        <ImageIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   {canEdit && (
                     <TableCell className="text-center">
@@ -322,6 +379,16 @@ export function AdditionalOrdersPage() {
           </Button>
         </div>
       </div>
+
+      {/* Image Preview Dialog */}
+      {imagePreview && (
+        <ImagePreviewDialog
+          orderId={imagePreview.id}
+          productName={imagePreview.productName}
+          open={!!imagePreview}
+          onClose={() => setImagePreview(null)}
+        />
+      )}
 
       {/* Delete Dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>

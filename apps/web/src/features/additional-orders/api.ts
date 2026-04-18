@@ -14,6 +14,7 @@ export interface AdditionalOrder {
   totalCost: number | null;
   status: 'PENDING' | 'ORDERED' | 'RECEIVED' | 'CANCELLED';
   remark: string | null;
+  hasImage: boolean;
   createdAt: string;
 }
 
@@ -35,6 +36,9 @@ export interface AdditionalOrderFilters {
 export const additionalOrdersApi = {
   list: (filters: AdditionalOrderFilters = {}) =>
     apiClient.get<AdditionalOrdersResponse>('/api/additional-orders', { params: filters }),
+
+  getImage: (id: string) =>
+    apiClient.get<{ imageData: string }>(`/api/additional-orders/${id}/image`),
 
   updateStatus: (id: string, status: string, remark?: string) =>
     apiClient.patch<AdditionalOrder>(`/api/additional-orders/${id}`, { status, remark }),
