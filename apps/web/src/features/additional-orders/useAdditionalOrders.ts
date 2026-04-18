@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { additionalOrdersApi, type AdditionalOrderFilters } from './api';
+import { additionalOrdersApi, type AdditionalOrderFilters, type OrderPayload } from './api';
 
 export const AO_KEY = ['additional-orders'] as const;
 
@@ -20,14 +20,26 @@ export function useOrderImage(id: string | null) {
   });
 }
 
-export function useUpdateOrderStatus() {
+export function useCreateOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status, remark }: { id: string; status: string; remark?: string }) =>
-      additionalOrdersApi.updateStatus(id, status, remark).then((r) => r.data),
+    mutationFn: (data: OrderPayload) => additionalOrdersApi.create(data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: AO_KEY });
-      toast.success('อัปเดตสถานะสำเร็จ');
+      toast.success('เพิ่มรายการสำเร็จ');
+    },
+    onError: () => toast.error('เกิดข้อผิดพลาด'),
+  });
+}
+
+export function useUpdateOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: OrderPayload }) =>
+      additionalOrdersApi.update(id, data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: AO_KEY });
+      toast.success('บันทึกสำเร็จ');
     },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
   });

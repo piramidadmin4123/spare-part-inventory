@@ -86,19 +86,59 @@ additionalOrdersRouter.get('/:id/image', async (req, res, next) => {
   }
 });
 
-// PATCH /api/additional-orders/:id — update status/remark
-additionalOrdersRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
+// ── helpers ──────────────────────────────────────────────────────────────────
+async function resolveBrand(brandName: string | undefined) {
+  if (!brandName?.trim()) return null;
+  const name = brandName.trim();
+  let brand = await prisma.brand.findFirst({ where: { name } });
+  if (!brand) brand = await prisma.brand.create({ data: { name } });
+  return brand;
+}
+
+function toDecimal(v: unknown) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return isNaN(n) ? null : new Prisma.Decimal(n);
+}
+
+const VALID_STATUSES = ['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'] as const;
+type OrderStatus = (typeof VALID_STATUSES)[number];
+
+// POST /api/additional-orders
+additionalOrdersRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
   try {
-    const { status, remark } = req.body as { status?: string; remark?: string };
-    const validStatuses = ['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'];
-    if (status && !validStatuses.includes(status))
+    const {
+      siteId,
+      type,
+      brandName,
+      modelCode,
+      productName,
+      quantity,
+      unitCost,
+      totalCost,
+      status = 'PENDING',
+      remark,
+    } = req.body as Record<string, unknown>;
+
+    if (!productName || String(productName).trim() === '')
+      throw new AppError(400, 'VALIDATION_ERROR', 'productName is required');
+    if (status && !VALID_STATUSES.includes(status as OrderStatus))
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid status');
 
-    const order = await prisma.additionalOrder.update({
-      where: { id: String(req.params.id) },
+    const brand = await resolveBrand(brandName as string | undefined);
+
+    const order = await prisma.additionalOrder.create({
       data: {
-        ...(status && { status: status as 'PENDING' | 'ORDERED' | 'RECEIVED' | 'CANCELLED' }),
-        ...(remark !== undefined && { remark }),
+        siteId: (siteId as string) || null,
+        brandId: brand?.id ?? null,
+        type: String(type ?? '').trim() || 'Unknown',
+        modelCode: String(modelCode ?? '').trim() || null,
+        productName: String(productName).trim(),
+        quantity: parseInt(String(quantity ?? 1)) || 1,
+        unitCost: toDecimal(unitCost),
+        totalCost: toDecimal(totalCost),
+        status: (status as OrderStatus) ?? 'PENDING',
+        remark: String(remark ?? '').trim() || null,
       },
       select: {
         id: true,
@@ -118,7 +158,68 @@ additionalOrdersRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req
         brand: { select: { id: true, name: true } },
       },
     });
-    res.json(order);
+    res.status(201).json({ ...order, hasImage: false });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/additional-orders/:id — full update
+additionalOrdersRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
+  try {
+    const {
+      siteId,
+      type,
+      brandName,
+      modelCode,
+      productName,
+      quantity,
+      unitCost,
+      totalCost,
+      status,
+      remark,
+    } = req.body as Record<string, unknown>;
+
+    if (status && !VALID_STATUSES.includes(status as OrderStatus))
+      throw new AppError(400, 'VALIDATION_ERROR', 'Invalid status');
+
+    const brand = brandName !== undefined ? await resolveBrand(brandName as string) : undefined;
+
+    const order = await prisma.additionalOrder.update({
+      where: { id: String(req.params.id) },
+      data: {
+        ...(siteId !== undefined && { siteId: (siteId as string) || null }),
+        ...(type !== undefined && { type: String(type).trim() || 'Unknown' }),
+        ...(brand !== undefined && { brandId: brand?.id ?? null }),
+        ...(modelCode !== undefined && { modelCode: String(modelCode).trim() || null }),
+        ...(productName !== undefined && { productName: String(productName).trim() }),
+        ...(quantity !== undefined && { quantity: parseInt(String(quantity)) || 1 }),
+        ...(unitCost !== undefined && { unitCost: toDecimal(unitCost) }),
+        ...(totalCost !== undefined && { totalCost: toDecimal(totalCost) }),
+        ...(status != null && status !== '' && { status: status as OrderStatus }),
+        ...(remark !== undefined && { remark: String(remark).trim() || null }),
+      },
+      select: {
+        id: true,
+        siteId: true,
+        brandId: true,
+        type: true,
+        modelCode: true,
+        productName: true,
+        quantity: true,
+        unitCost: true,
+        totalCost: true,
+        status: true,
+        remark: true,
+        createdAt: true,
+        updatedAt: true,
+        imageData: true,
+        site: { select: { id: true, code: true, name: true } },
+        brand: { select: { id: true, name: true } },
+      },
+    });
+    const { imageData, ...rest } = order;
+    res.json({ ...rest, hasImage: !!imageData });
   } catch (err) {
     next(err);
   }

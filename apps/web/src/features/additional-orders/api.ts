@@ -33,6 +33,19 @@ export interface AdditionalOrderFilters {
   limit?: number;
 }
 
+export interface OrderPayload {
+  siteId?: string | null;
+  type?: string;
+  brandName?: string;
+  modelCode?: string;
+  productName?: string;
+  quantity?: number;
+  unitCost?: number | null;
+  totalCost?: number | null;
+  status?: string;
+  remark?: string;
+}
+
 export const additionalOrdersApi = {
   list: (filters: AdditionalOrderFilters = {}) =>
     apiClient.get<AdditionalOrdersResponse>('/api/additional-orders', { params: filters }),
@@ -40,8 +53,10 @@ export const additionalOrdersApi = {
   getImage: (id: string) =>
     apiClient.get<{ imageData: string }>(`/api/additional-orders/${id}/image`),
 
-  updateStatus: (id: string, status: string, remark?: string) =>
-    apiClient.patch<AdditionalOrder>(`/api/additional-orders/${id}`, { status, remark }),
+  create: (data: OrderPayload) => apiClient.post<AdditionalOrder>('/api/additional-orders', data),
+
+  update: (id: string, data: OrderPayload) =>
+    apiClient.patch<AdditionalOrder>(`/api/additional-orders/${id}`, data),
 
   delete: (id: string) => apiClient.delete(`/api/additional-orders/${id}`),
 };

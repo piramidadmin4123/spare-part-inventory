@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Loader2,
   Trash2,
@@ -9,10 +12,14 @@ import {
   Clock,
   XCircle,
   PackageCheck,
+  Plus,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -42,10 +49,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import {
   useAdditionalOrders,
   useOrderImage,
-  useUpdateOrderStatus,
+  useCreateOrder,
+  useUpdateOrder,
   useDeleteOrder,
 } from '@/features/additional-orders/useAdditionalOrders';
-import { useSites } from '@/features/master-data/useMasterData';
+import { useSites, useBrands } from '@/features/master-data/useMasterData';
 import { useAuthStore } from '@/store/auth.store';
 import type { AdditionalOrder } from '@/features/additional-orders/api';
 
@@ -78,6 +86,22 @@ const STATUS_CONFIG = {
   },
 };
 
+// ── Form schema ───────────────────────────────────────────────────────────────
+const orderSchema = z.object({
+  siteId: z.string().optional(),
+  type: z.string().min(1, 'กรุณาระบุ Type'),
+  brandName: z.string().optional(),
+  modelCode: z.string().optional(),
+  productName: z.string().min(1, 'กรุณาระบุชื่อสินค้า'),
+  quantity: z.coerce.number().int().min(1, 'Qty ต้องมากกว่า 0'),
+  unitCost: z.coerce.number().min(0).optional().or(z.literal('')),
+  totalCost: z.coerce.number().min(0).optional().or(z.literal('')),
+  status: z.string(),
+  remark: z.string().optional(),
+});
+type OrderFormValues = z.infer<typeof orderSchema>;
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: AdditionalOrder['status'] }) {
   const cfg = STATUS_CONFIG[status];
   const Icon = cfg.icon;
@@ -99,13 +123,8 @@ function ThumbnailCell({
   onExpand: () => void;
 }) {
   const { data: imageData, isLoading } = useOrderImage(orderId);
-
-  if (isLoading) {
-    return <div className="h-10 w-14 animate-pulse rounded bg-gray-200" />;
-  }
-  if (!imageData) {
-    return <span className="text-xs text-muted-foreground">—</span>;
-  }
+  if (isLoading) return <div className="h-10 w-14 animate-pulse rounded bg-gray-200" />;
+  if (!imageData) return <span className="text-xs text-muted-foreground">—</span>;
   return (
     <button onClick={onExpand} className="focus:outline-none" title="คลิกดูรูปขนาดใหญ่">
       <img
@@ -153,6 +172,257 @@ function ImagePreviewDialog({
   );
 }
 
+function OrderFormDialog({
+  open,
+  onClose,
+  editOrder,
+}: {
+  open: boolean;
+  onClose: () => void;
+  editOrder: AdditionalOrder | null;
+}) {
+  const { data: sites = [] } = useSites();
+  const { data: brands = [] } = useBrands();
+  const createOrder = useCreateOrder();
+  const updateOrder = useUpdateOrder();
+  const isEdit = !!editOrder;
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<OrderFormValues>({
+    resolver: zodResolver(orderSchema),
+    defaultValues: {
+      siteId: '',
+      type: '',
+      brandName: '',
+      modelCode: '',
+      productName: '',
+      quantity: 1,
+      unitCost: '',
+      totalCost: '',
+      status: 'PENDING',
+      remark: '',
+    },
+  });
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editOrder) {
+      reset({
+        siteId: editOrder.siteId ?? '',
+        type: editOrder.type,
+        brandName: editOrder.brand?.name ?? '',
+        modelCode: editOrder.modelCode ?? '',
+        productName: editOrder.productName,
+        quantity: editOrder.quantity,
+        unitCost: editOrder.unitCost != null ? editOrder.unitCost : '',
+        totalCost: editOrder.totalCost != null ? editOrder.totalCost : '',
+        status: editOrder.status,
+        remark: editOrder.remark ?? '',
+      });
+    } else {
+      reset({
+        siteId: '',
+        type: '',
+        brandName: '',
+        modelCode: '',
+        productName: '',
+        quantity: 1,
+        unitCost: '',
+        totalCost: '',
+        status: 'PENDING',
+        remark: '',
+      });
+    }
+  }, [editOrder, reset]);
+
+  // Auto-calculate totalCost when qty/unitCost changes
+  const qty = watch('quantity');
+  const unitCostVal = watch('unitCost');
+  useEffect(() => {
+    if (qty && unitCostVal !== '' && unitCostVal != null) {
+      const total = Number(qty) * Number(unitCostVal);
+      if (!isNaN(total)) setValue('totalCost', total);
+    }
+  }, [qty, unitCostVal, setValue]);
+
+  async function onSubmit(values: OrderFormValues) {
+    const payload = {
+      siteId: values.siteId || null,
+      type: values.type,
+      brandName: values.brandName || undefined,
+      modelCode: values.modelCode || undefined,
+      productName: values.productName,
+      quantity: values.quantity,
+      unitCost: values.unitCost !== '' ? Number(values.unitCost) : null,
+      totalCost: values.totalCost !== '' ? Number(values.totalCost) : null,
+      status: values.status,
+      remark: values.remark || undefined,
+    };
+
+    if (isEdit) {
+      await updateOrder.mutateAsync({ id: editOrder!.id, data: payload });
+    } else {
+      await createOrder.mutateAsync(payload);
+    }
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'แก้ไขรายการสั่งซื้อ' : 'เพิ่มรายการสั่งซื้อ'}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-4">
+          {/* Site */}
+          <div className="space-y-1">
+            <Label>Site</Label>
+            <Select
+              value={watch('siteId') || 'none'}
+              onValueChange={(v) => setValue('siteId', v === 'none' ? '' : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="เลือก Site" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— ไม่ระบุ —</SelectItem>
+                {sites.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.code} — {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Status */}
+          <div className="space-y-1">
+            <Label>สถานะ</Label>
+            <Select value={watch('status')} onValueChange={(v) => setValue('status', v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
+                  <SelectItem key={val} value={val}>
+                    {cfg.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Type */}
+          <div className="space-y-1">
+            <Label>
+              Type <span className="text-destructive">*</span>
+            </Label>
+            <Input {...register('type')} placeholder="เช่น Fiber, Switch" />
+            {errors.type && <p className="text-xs text-destructive">{errors.type.message}</p>}
+          </div>
+
+          {/* Brand */}
+          <div className="space-y-1">
+            <Label>Brand</Label>
+            <Select
+              value={watch('brandName') || 'custom'}
+              onValueChange={(v) => setValue('brandName', v === 'custom' ? '' : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="เลือกหรือพิมพ์ brand" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="custom">— พิมพ์เอง —</SelectItem>
+                {brands.map((b) => (
+                  <SelectItem key={b.id} value={b.name}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              {...register('brandName')}
+              placeholder="หรือพิมพ์ชื่อ Brand ใหม่"
+              className="mt-1"
+            />
+          </div>
+
+          {/* Model Code */}
+          <div className="space-y-1">
+            <Label>Model Code</Label>
+            <Input {...register('modelCode')} placeholder="เช่น UFP542D31-03" />
+          </div>
+
+          {/* Product Name */}
+          <div className="space-y-1">
+            <Label>
+              Product Name <span className="text-destructive">*</span>
+            </Label>
+            <Input {...register('productName')} placeholder="ชื่อสินค้า" />
+            {errors.productName && (
+              <p className="text-xs text-destructive">{errors.productName.message}</p>
+            )}
+          </div>
+
+          {/* Qty */}
+          <div className="space-y-1">
+            <Label>
+              Qty <span className="text-destructive">*</span>
+            </Label>
+            <Input type="number" min={1} {...register('quantity')} />
+            {errors.quantity && (
+              <p className="text-xs text-destructive">{errors.quantity.message}</p>
+            )}
+          </div>
+
+          {/* Unit Cost */}
+          <div className="space-y-1">
+            <Label>Unit Cost (บาท)</Label>
+            <Input type="number" min={0} step="0.01" {...register('unitCost')} placeholder="0.00" />
+          </div>
+
+          {/* Total Cost */}
+          <div className="col-span-2 space-y-1">
+            <Label>Total Cost (บาท) — คำนวณอัตโนมัติ Qty × Unit Cost</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              {...register('totalCost')}
+              placeholder="0.00"
+            />
+          </div>
+
+          {/* Remark */}
+          <div className="col-span-2 space-y-1">
+            <Label>Remark</Label>
+            <Textarea {...register('remark')} placeholder="หมายเหตุ..." rows={2} />
+          </div>
+
+          {/* Actions */}
+          <div className="col-span-2 flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              ยกเลิก
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEdit ? 'บันทึก' : 'เพิ่มรายการ'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export function AdditionalOrdersPage() {
   const { user } = useAuthStore();
   const canEdit = user?.role === 'ADMIN' || user?.role === 'MANAGER';
@@ -161,6 +431,9 @@ export function AdditionalOrdersPage() {
   const [siteId, setSiteId] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<AdditionalOrder | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdditionalOrder | null>(null);
   const [imagePreview, setImagePreview] = useState<{ id: string; productName: string } | null>(
     null
@@ -175,7 +448,6 @@ export function AdditionalOrdersPage() {
   };
 
   const { data, isLoading } = useAdditionalOrders(filters);
-  const updateStatus = useUpdateOrderStatus();
   const deleteOrder = useDeleteOrder();
   const { data: sites = [] } = useSites();
 
@@ -188,7 +460,17 @@ export function AdditionalOrdersPage() {
     return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  const colSpan = canEdit ? 13 : 12;
+  function openCreate() {
+    setEditTarget(null);
+    setFormOpen(true);
+  }
+
+  function openEdit(order: AdditionalOrder) {
+    setEditTarget(order);
+    setFormOpen(true);
+  }
+
+  const colSpan = canEdit ? 14 : 12;
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
@@ -198,6 +480,12 @@ export function AdditionalOrdersPage() {
           <h1 className="text-xl font-semibold">รายการสั่งซื้อเพิ่ม</h1>
           <p className="text-sm text-muted-foreground">Additional Orders ({total} รายการ)</p>
         </div>
+        {canEdit && (
+          <Button onClick={openCreate} className="gap-2">
+            <Plus className="h-4 w-4" />
+            เพิ่มรายการ
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -271,7 +559,12 @@ export function AdditionalOrdersPage() {
               <TableHead>Status</TableHead>
               <TableHead>Remark</TableHead>
               <TableHead className="w-16 text-center">รูป</TableHead>
-              {canEdit && <TableHead className="w-16 text-center">จัดการ</TableHead>}
+              {canEdit && (
+                <>
+                  <TableHead className="w-10 text-center">แก้ไข</TableHead>
+                  <TableHead className="w-10 text-center">ลบ</TableHead>
+                </>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -310,25 +603,7 @@ export function AdditionalOrdersPage() {
                     {fmt(order.totalCost)}
                   </TableCell>
                   <TableCell>
-                    {canEdit ? (
-                      <Select
-                        value={order.status}
-                        onValueChange={(v) => updateStatus.mutate({ id: order.id, status: v })}
-                      >
-                        <SelectTrigger className="h-7 w-36 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
-                            <SelectItem key={val} value={val} className="text-xs">
-                              {cfg.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <StatusBadge status={order.status} />
-                    )}
+                    <StatusBadge status={order.status} />
                   </TableCell>
                   <TableCell className="max-w-[160px] text-xs text-muted-foreground">
                     <p className="line-clamp-2">{order.remark ?? '—'}</p>
@@ -347,16 +622,28 @@ export function AdditionalOrdersPage() {
                     )}
                   </TableCell>
                   {canEdit && (
-                    <TableCell className="text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteTarget(order)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
+                    <>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => openEdit(order)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteTarget(order)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </>
                   )}
                 </TableRow>
               ))
@@ -403,6 +690,16 @@ export function AdditionalOrdersPage() {
           </Button>
         </div>
       </div>
+
+      {/* Create / Edit Dialog */}
+      <OrderFormDialog
+        open={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setEditTarget(null);
+        }}
+        editOrder={editTarget}
+      />
 
       {/* Image Preview Dialog */}
       {imagePreview && (
