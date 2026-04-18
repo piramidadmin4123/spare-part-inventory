@@ -10,6 +10,7 @@ import { ProfilePage } from '@/pages/ProfilePage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { InventoryPage } from '@/pages/InventoryPage';
 import { BorrowPage } from '@/pages/BorrowPage';
+import { AdditionalOrdersPage } from '@/pages/AdditionalOrdersPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +42,7 @@ function App() {
               {/* Coming in future phases */}
               <Route path="/inventory" element={<InventoryPage />} />
               <Route path="/borrow" element={<BorrowPage />} />
+              <Route path="/orders" element={<AdditionalOrdersPage />} />
               <Route
                 path="/sites/*"
                 element={<div className="p-6 text-muted-foreground">Sites — Phase 3</div>}

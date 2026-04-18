@@ -13,6 +13,7 @@ import { inventoryRouter } from './modules/inventory/inventory.router.js';
 import { borrowRouter } from './modules/borrow/borrow.router.js';
 import { excelRouter } from './modules/excel/excel.router.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.router.js';
+import { additionalOrdersRouter } from './modules/additional-orders/additional-orders.router.js';
 
 const app: Express = express();
 const PORT = process.env.PORT ?? 3001;
@@ -50,6 +51,7 @@ app.use('/api/spare-parts', inventoryRouter);
 app.use('/api/borrow', borrowRouter);
 app.use('/api/excel', excelRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/additional-orders', additionalOrdersRouter);
 
 // Health check
 app.get('/health', (_req, res) => {

@@ -7,6 +7,7 @@ import {
   Settings,
   LogOut,
   User,
+  ShoppingCart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/inventory', icon: Package, label: 'Spare Parts' },
   { to: '/borrow', icon: ArrowLeftRight, label: 'ยืม / คืน' },
+  { to: '/orders', icon: ShoppingCart, label: 'สั่งซื้อเพิ่ม' },
   { to: '/sites', icon: MapPin, label: 'Sites' },
 ];
 
