@@ -5,7 +5,7 @@ const sharedConfig = {
   platform: 'node',
   target: 'node20',
   format: 'cjs',
-  external: ['@prisma/client', 'bcrypt'],
+  external: ['@prisma/client', 'bcrypt', 'jwks-rsa', 'jose'],
 };
 
 await Promise.all([
