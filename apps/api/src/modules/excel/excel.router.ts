@@ -506,7 +506,17 @@ excelRouter.get('/export', async (req, res, next) => {
 
     const parts = await prisma.sparePart.findMany({
       where,
-      include: { site: true, equipmentType: true, brand: true },
+      include: {
+        site: true,
+        equipmentType: true,
+        brand: true,
+        borrowTransactions: {
+          where: { status: 'APPROVED' },
+          include: { borrower: { select: { name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
       orderBy: [
         { site: { code: 'asc' } },
         { equipmentType: { code: 'asc' } },
@@ -518,70 +528,205 @@ excelRouter.get('/export', async (req, res, next) => {
     wb.creator = 'Spare Part Inventory';
     wb.created = new Date();
 
-    const ws = wb.addWorksheet('Spare Parts Export');
-
-    const headerFill: ExcelJS.Fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF1F3864' },
-    };
-    const headerFont: Partial<ExcelJS.Font> = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-    const borderStyle: Partial<ExcelJS.Borders> = {
+    const BORDER: Partial<ExcelJS.Borders> = {
       top: { style: 'thin' },
       bottom: { style: 'thin' },
       left: { style: 'thin' },
       right: { style: 'thin' },
     };
+    const BORROW_FILL: ExcelJS.Fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFC000' },
+    };
+    const CODE_FILL: ExcelJS.Fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFFF00' },
+    };
 
-    ws.columns = [
-      { header: 'No', key: 'no', width: 6 },
-      { header: 'Site', key: 'site', width: 18 },
-      { header: 'Type', key: 'type', width: 12 },
-      { header: 'Brand', key: 'brand', width: 14 },
-      { header: 'Material Code', key: 'materialCode', width: 20 },
-      { header: 'Model Code', key: 'modelCode', width: 20 },
-      { header: 'Product Name', key: 'productName', width: 50 },
-      { header: 'Qty', key: 'qty', width: 8 },
-      { header: 'Cost (THB)', key: 'cost', width: 14 },
-      { header: 'Status', key: 'status', width: 16 },
-      { header: 'Serial Number', key: 'serialNumber', width: 22 },
-      { header: 'Location', key: 'location', width: 16 },
-      { header: 'Remark', key: 'remark', width: 30 },
-    ];
+    const fmtDate = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : '');
 
-    ws.getRow(1).eachCell((cell) => {
-      cell.fill = headerFill;
-      cell.font = headerFont;
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.border = borderStyle;
-    });
-    ws.getRow(1).height = 20;
+    const buildSheet = (
+      ws: ExcelJS.Worksheet,
+      titleText: string,
+      rows: typeof parts,
+      withSite: boolean
+    ) => {
+      const totalCols = withSite ? 17 : 16;
 
-    parts.forEach((p, idx) => {
-      const row = ws.addRow({
-        no: idx + 1,
-        site: p.site.code,
-        type: p.equipmentType.code,
-        brand: p.brand.name,
-        materialCode: p.materialCode ?? '',
-        modelCode: p.modelCode,
-        productName: p.productName,
-        qty: p.quantity,
-        cost: p.cost ? Number(p.cost) : '',
-        status: p.status,
-        serialNumber: p.serialNumber ?? '',
-        location: p.location ?? '',
-        remark: p.remark ?? '',
-      });
-      row.eachCell((cell) => {
-        cell.border = borderStyle;
-      });
-      if (idx % 2 === 1) {
-        row.eachCell((cell) => {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
-        });
+      // Rows 1-3: merged title
+      for (let r = 1; r <= 3; r++) {
+        ws.mergeCells(r, 1, r, totalCols);
+        const cell = ws.getCell(r, 1);
+        cell.value = titleText;
+        cell.font = { bold: true, size: 13 };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        ws.getRow(r).height = 19.5;
       }
-    });
+
+      // Rows 4-5: empty spacer
+      ws.getRow(4).height = 19.5;
+      ws.getRow(5).height = 19.5;
+
+      // Row 6: "การยืมอุปกรณ์" label spanning borrow columns
+      const borrowStart = withSite ? 14 : 13;
+      ws.mergeCells(6, borrowStart, 6, totalCols);
+      const lblCell = ws.getCell(6, borrowStart);
+      lblCell.value = 'การยืมอุปกรณ์';
+      lblCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getRow(6).height = 19.5;
+
+      // Row 7: headers
+      const headers = withSite
+        ? [
+            'No',
+            'Site',
+            'Type',
+            'Brand',
+            'Material Code',
+            'Code (Model)',
+            'PRODUCT NAME',
+            'Qty',
+            'Cost (Total)',
+            'Status',
+            'Serail Number',
+            'MAC ADDRESS',
+            'Remark',
+            'Name',
+            'Date Start',
+            'Date End',
+            'Project',
+          ]
+        : [
+            'No',
+            'Type',
+            'Brand',
+            'Material Code',
+            'Code (Model)',
+            'PRODUCT NAME',
+            'Qty',
+            'Cost (Total)',
+            'Status',
+            'Serail Number',
+            'MAC ADDRESS',
+            'Remark',
+            'Name',
+            'Date Start',
+            'Date End',
+            'Project',
+          ];
+
+      // Bold columns (1-indexed): No, [Site], Type, Brand, Mat Code, Code, PRODUCT NAME, Qty, Cost, Remark
+      const boldSet = withSite
+        ? new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 13])
+        : new Set([1, 2, 3, 4, 5, 6, 7, 8, 12]);
+
+      const hRow = ws.getRow(7);
+      hRow.height = 55.35;
+      headers.forEach((h, i) => {
+        const c = i + 1;
+        const cell = hRow.getCell(c);
+        cell.value = h;
+        cell.border = BORDER;
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.font = { bold: boldSet.has(c) };
+        if (c >= borrowStart) cell.fill = BORROW_FILL;
+      });
+
+      // Column widths
+      const widths = withSite
+        ? [
+            10.55, 18, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55, 27.44,
+            27.55, 15.55, 15.55, 30.55,
+          ]
+        : [
+            10.55, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55, 27.44,
+            27.55, 15.55, 15.55, 30.55,
+          ];
+      widths.forEach((w, i) => {
+        ws.getColumn(i + 1).width = w;
+      });
+
+      // Data rows (starting at row 8)
+      const codeColIdx = withSite ? 6 : 5;
+      rows.forEach((p, idx) => {
+        const activeBorrow = p.borrowTransactions[0] ?? null;
+        const values = withSite
+          ? [
+              idx + 1,
+              p.site.code,
+              p.equipmentType.code,
+              p.brand.name,
+              p.materialCode ?? '',
+              p.modelCode,
+              p.productName,
+              p.quantity,
+              p.cost ? Number(p.cost) : '',
+              p.status,
+              p.serialNumber ?? '',
+              p.macAddress ?? '',
+              p.remark ?? '',
+              activeBorrow?.borrower.name ?? '',
+              fmtDate(activeBorrow?.dateStart),
+              fmtDate(activeBorrow?.expectedReturn),
+              activeBorrow ? '' : '',
+            ]
+          : [
+              idx + 1,
+              p.equipmentType.code,
+              p.brand.name,
+              p.materialCode ?? '',
+              p.modelCode,
+              p.productName,
+              p.quantity,
+              p.cost ? Number(p.cost) : '',
+              p.status,
+              p.serialNumber ?? '',
+              p.macAddress ?? '',
+              p.remark ?? '',
+              activeBorrow?.borrower.name ?? '',
+              fmtDate(activeBorrow?.dateStart),
+              fmtDate(activeBorrow?.expectedReturn),
+              '',
+            ];
+
+        const dRow = ws.getRow(8 + idx);
+        dRow.height = 55.35;
+        values.forEach((v, i) => {
+          const c = i + 1;
+          const cell = dRow.getCell(c);
+          cell.value = v as ExcelJS.CellValue;
+          cell.border = BORDER;
+          cell.alignment = { vertical: 'middle', wrapText: true };
+          if (c === codeColIdx && v) cell.fill = CODE_FILL;
+        });
+      });
+    };
+
+    // If filtering by a specific site → single sheet; otherwise All + per-site
+    if (siteId) {
+      const siteName = parts[0]?.site.name ?? 'EXPORT';
+      const ws = wb.addWorksheet(`Spare Parts ${parts[0]?.site.code ?? 'Export'}`);
+      buildSheet(ws, `SPARE PART SERVICE ${siteName.toUpperCase()}`, parts, false);
+    } else {
+      // All Sites summary sheet (with Site column)
+      const wsAll = wb.addWorksheet('Spare Parts All');
+      buildSheet(wsAll, 'SPARE PART SERVICE ALL SITES', parts, true);
+
+      // Per-site sheets (without Site column)
+      const bySite = new Map<string, { code: string; name: string; rows: typeof parts }>();
+      for (const p of parts) {
+        if (!bySite.has(p.siteId)) {
+          bySite.set(p.siteId, { code: p.site.code, name: p.site.name, rows: [] });
+        }
+        bySite.get(p.siteId)!.rows.push(p);
+      }
+      for (const { code, name, rows } of bySite.values()) {
+        const ws = wb.addWorksheet(`Spare Parts ${code}`);
+        buildSheet(ws, `SPARE PART SERVICE ${name.toUpperCase()}`, rows, false);
+      }
+    }
 
     const filename = `spare-parts-${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.setHeader(
