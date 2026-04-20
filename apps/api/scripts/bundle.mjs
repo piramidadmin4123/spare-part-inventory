@@ -1,0 +1,24 @@
+import { build } from 'esbuild';
+
+const sharedConfig = {
+  bundle: true,
+  platform: 'node',
+  target: 'node20',
+  format: 'esm',
+  external: ['@prisma/client', 'bcrypt'],
+};
+
+await Promise.all([
+  build({
+    ...sharedConfig,
+    entryPoints: ['api/_index.ts'],
+    outfile: 'api/index.js',
+  }),
+  build({
+    ...sharedConfig,
+    entryPoints: ['api/_cron.ts'],
+    outfile: 'api/cron.js',
+  }),
+]);
+
+console.log('Bundle complete');

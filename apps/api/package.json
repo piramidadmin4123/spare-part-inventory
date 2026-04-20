@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.build.json",
-    "vercel-build": "pnpm --filter @spare-part/shared run build && prisma generate",
+    "vercel-build": "node scripts/bundle.mjs && prisma generate",
     "start": "node dist/src/server.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
@@ -49,6 +49,7 @@
     "@types/node-cron": "^3.0.11",
     "@vercel/node": "^5.7.11",
     "prisma": "^6.8.2",
+    "esbuild": "^0.25.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
