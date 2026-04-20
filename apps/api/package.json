@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.build.json",
+    "vercel-build": "prisma generate",
     "start": "node dist/src/server.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
