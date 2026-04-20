@@ -3,9 +3,10 @@ node_modules/
 .pnpm-store/
 
 # Build outputs
-dist/
 build/
 .next/
+apps/api/dist/
+apps/web/dist/
 
 # Environment files
 .env
@@ -40,4 +41,3 @@ apps/api/uploads/
 
 # Coverage
 coverage/
-packages/shared/dist
