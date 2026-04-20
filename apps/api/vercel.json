@@ -1,5 +1,4 @@
 {
-  "buildCommand": "pnpm exec prisma generate",
   "functions": {
     "api/index.ts": {
       "memory": 1024,
