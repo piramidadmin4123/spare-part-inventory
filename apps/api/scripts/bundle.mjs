@@ -4,7 +4,7 @@ const sharedConfig = {
   bundle: true,
   platform: 'node',
   target: 'node20',
-  format: 'esm',
+  format: 'cjs',
   external: ['@prisma/client', 'bcrypt'],
 };
 
@@ -12,12 +12,12 @@ await Promise.all([
   build({
     ...sharedConfig,
     entryPoints: ['api/_index.ts'],
-    outfile: 'api/index.js',
+    outfile: 'api/index.cjs',
   }),
   build({
     ...sharedConfig,
     entryPoints: ['api/_cron.ts'],
-    outfile: 'api/cron.js',
+    outfile: 'api/cron.cjs',
   }),
 ]);
 

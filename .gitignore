@@ -7,6 +7,8 @@ build/
 .next/
 apps/api/dist/
 apps/web/dist/
+apps/api/api/index.js
+apps/api/api/cron.js
 
 # Environment files
 .env
