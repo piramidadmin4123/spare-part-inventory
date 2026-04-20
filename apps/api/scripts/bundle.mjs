@@ -12,12 +12,12 @@ await Promise.all([
   build({
     ...sharedConfig,
     entryPoints: ['api/_index.ts'],
-    outfile: 'api/index.cjs',
+    outfile: 'api/index.js',
   }),
   build({
     ...sharedConfig,
     entryPoints: ['api/_cron.ts'],
-    outfile: 'api/cron.cjs',
+    outfile: 'api/cron.js',
   }),
 ]);
 

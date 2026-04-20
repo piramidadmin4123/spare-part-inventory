@@ -1,10 +1,10 @@
 {
   "functions": {
-    "api/index.cjs": {
+    "api/index.js": {
       "memory": 1024,
       "maxDuration": 30
     },
-    "api/cron.cjs": {
+    "api/cron.js": {
       "memory": 512,
       "maxDuration": 60
     }
