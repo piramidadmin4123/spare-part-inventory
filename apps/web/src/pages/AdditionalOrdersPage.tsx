@@ -393,11 +393,13 @@ function OrderFormDialog({
             )}
             {imageData && (
               <div className="space-y-2 pt-1">
-                <img
-                  src={imageData}
-                  alt="ตัวอย่างรูปที่เลือก"
-                  className="max-h-40 w-full rounded border object-contain"
-                />
+                <div className="max-h-32 overflow-auto rounded border bg-muted/20 p-2">
+                  <img
+                    src={imageData}
+                    alt="ตัวอย่างรูปที่เลือก"
+                    className="mx-auto max-h-24 w-auto rounded object-contain"
+                  />
+                </div>
                 <button
                   type="button"
                   className="text-xs text-muted-foreground underline underline-offset-2"
