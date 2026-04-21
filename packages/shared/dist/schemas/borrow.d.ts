@@ -5,8 +5,10 @@ export declare const borrowRequestSchema: z.ZodObject<
     borrowerName: z.ZodString;
     borrowerEmail: z.ZodString;
     project: z.ZodOptional<z.ZodString>;
-    dateStart: z.ZodEffects<z.ZodString, string, unknown>;
-    expectedReturn: z.ZodOptional<z.ZodEffects<z.ZodString, string, unknown>>;
+    dateStart: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
+    expectedReturn: z.ZodOptional<
+      z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>
+    >;
     borrowerRemark: z.ZodOptional<z.ZodString>;
   },
   'strip',
@@ -24,9 +26,9 @@ export declare const borrowRequestSchema: z.ZodObject<
     sparePartId: string;
     borrowerName: string;
     borrowerEmail: string;
+    dateStart: string;
     project?: string | undefined;
-    dateStart?: unknown;
-    expectedReturn?: unknown;
+    expectedReturn?: string | undefined;
     borrowerRemark?: string | undefined;
   }
 >;
@@ -46,7 +48,7 @@ export declare const approveSchema: z.ZodObject<
 >;
 export declare const returnSchema: z.ZodObject<
   {
-    actualReturn: z.ZodEffects<z.ZodString, string, unknown>;
+    actualReturn: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
     borrowerRemark: z.ZodOptional<z.ZodString>;
   },
   'strip',
@@ -56,8 +58,8 @@ export declare const returnSchema: z.ZodObject<
     borrowerRemark?: string | undefined;
   },
   {
+    actualReturn: string;
     borrowerRemark?: string | undefined;
-    actualReturn?: unknown;
   }
 >;
 export declare const rejectSchema: z.ZodObject<
@@ -91,8 +93,12 @@ export declare const editBorrowSchema: z.ZodObject<
     borrowerName: z.ZodOptional<z.ZodString>;
     borrowerEmail: z.ZodOptional<z.ZodString>;
     project: z.ZodNullable<z.ZodOptional<z.ZodString>>;
-    dateStart: z.ZodOptional<z.ZodEffects<z.ZodString, string, unknown>>;
-    expectedReturn: z.ZodOptional<z.ZodEffects<z.ZodString, string, unknown>>;
+    dateStart: z.ZodOptional<
+      z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>
+    >;
+    expectedReturn: z.ZodOptional<
+      z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>
+    >;
     borrowerRemark: z.ZodNullable<z.ZodOptional<z.ZodString>>;
   },
   'strip',
@@ -109,8 +115,8 @@ export declare const editBorrowSchema: z.ZodObject<
     borrowerName?: string | undefined;
     borrowerEmail?: string | undefined;
     project?: string | null | undefined;
-    dateStart?: unknown;
-    expectedReturn?: unknown;
+    dateStart?: string | undefined;
+    expectedReturn?: string | undefined;
     borrowerRemark?: string | null | undefined;
   }
 >;

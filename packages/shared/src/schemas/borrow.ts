@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-const toIsoDatetime = z.preprocess(
-  (v) => (typeof v === 'string' && v ? new Date(v).toISOString() : v),
-  z.string().datetime()
-);
+const toIsoDatetime = z
+  .string()
+  .refine((v) => v !== '' && !isNaN(new Date(v).getTime()), 'Invalid datetime')
+  .transform((v) => new Date(v).toISOString());
 
 export const borrowRequestSchema = z.object({
   sparePartId: z.string().uuid(),
