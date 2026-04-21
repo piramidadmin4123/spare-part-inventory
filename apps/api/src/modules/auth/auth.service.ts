@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import jwksClient from 'jwks-rsa';
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../middleware/error-handler.js';
 import type { AuthUser } from '../../middleware/auth.js';
@@ -81,18 +81,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
 const AZURE_TENANT_ID = process.env.AZURE_TENANT_ID;
 const AZURE_CLIENT_ID = process.env.AZURE_CLIENT_ID;
 
-function getMsJwksClient() {
-  if (!AZURE_TENANT_ID) throw new AppError(503, 'CONFIG_ERROR', 'Azure AD not configured');
-  // Use "common" JWKS endpoint so keys from any tenant are accepted
-  const tenantForKeys = AZURE_TENANT_ID === 'common' ? 'common' : AZURE_TENANT_ID;
-  return jwksClient({
-    jwksUri: `https://login.microsoftonline.com/${tenantForKeys}/discovery/v2.0/keys`,
-    cache: true,
-    cacheMaxAge: 3_600_000,
-  });
-}
-
-interface MsClaims {
+interface MsClaims extends JWTPayload {
   oid: string;
   preferred_username?: string;
   email?: string;
@@ -100,35 +89,38 @@ interface MsClaims {
   upn?: string;
 }
 
-async function verifyMsIdToken(idToken: string): Promise<MsClaims> {
-  const client = getMsJwksClient();
+function getMsJwks() {
+  if (!AZURE_TENANT_ID || !AZURE_CLIENT_ID) {
+    throw new AppError(503, 'CONFIG_ERROR', 'Azure AD not configured');
+  }
 
-  return new Promise((resolve, reject) => {
-    jwt.verify(
-      idToken,
-      (header, callback) => {
-        client.getSigningKey(header.kid, (err, key) => {
-          callback(err ?? null, key?.getPublicKey());
-        });
-      },
-      {
-        algorithms: ['RS256'],
-        audience: AZURE_CLIENT_ID,
-        // For common/multi-tenant: issuer contains the actual user's tenant ID,
-        // not "common" — so we skip strict issuer check and validate manually below
-        ...(AZURE_TENANT_ID !== 'common' && {
-          issuer: [
-            `https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0`,
-            `https://sts.windows.net/${AZURE_TENANT_ID}/`,
-          ],
-        }),
-      },
-      (err, decoded) => {
-        if (err) return reject(new AppError(401, 'INVALID_TOKEN', 'Microsoft token invalid'));
-        resolve(decoded as MsClaims);
-      }
-    );
-  });
+  const tenantForKeys = AZURE_TENANT_ID === 'common' ? 'common' : AZURE_TENANT_ID;
+  return createRemoteJWKSet(
+    new URL(`https://login.microsoftonline.com/${tenantForKeys}/discovery/v2.0/keys`)
+  );
+}
+
+async function verifyMsIdToken(idToken: string): Promise<MsClaims> {
+  const jwks = getMsJwks();
+
+  try {
+    const { payload } = await jwtVerify<MsClaims>(idToken, jwks, {
+      algorithms: ['RS256'],
+      audience: AZURE_CLIENT_ID,
+      // For common/multi-tenant: issuer contains the actual user's tenant ID,
+      // not "common" — so we skip strict issuer check and validate manually below
+      ...(AZURE_TENANT_ID !== 'common' && {
+        issuer: [
+          `https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0`,
+          `https://sts.windows.net/${AZURE_TENANT_ID}/`,
+        ],
+      }),
+    });
+
+    return payload;
+  } catch {
+    throw new AppError(401, 'INVALID_TOKEN', 'Microsoft token invalid');
+  }
 }
 
 export async function loginWithMicrosoft(idToken: string) {
