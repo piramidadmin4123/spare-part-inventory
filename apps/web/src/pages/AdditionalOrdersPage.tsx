@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import {
   PackageCheck,
   Plus,
   Pencil,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -186,6 +187,39 @@ function OrderFormDialog({
   const createOrder = useCreateOrder();
   const updateOrder = useUpdateOrder();
   const isEdit = !!editOrder;
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [imageData, setImageData] = useState<string | null>(null);
+  const [imageName, setImageName] = useState('');
+
+  function clearSelectedImage() {
+    setImageData(null);
+    setImageName('');
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
+    }
+  }
+
+  async function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error('Unable to read image'));
+      };
+      reader.onerror = () => reject(reader.error ?? new Error('Unable to read image'));
+      reader.readAsDataURL(file);
+    });
+
+    setImageData(dataUrl);
+    setImageName(file.name);
+    e.target.value = '';
+  }
 
   const {
     register,
@@ -212,6 +246,11 @@ function OrderFormDialog({
 
   // Populate form when editing
   useEffect(() => {
+    if (!open) {
+      clearSelectedImage();
+      return;
+    }
+
     if (editOrder) {
       reset({
         siteId: editOrder.siteId ?? '',
@@ -239,7 +278,9 @@ function OrderFormDialog({
         remark: '',
       });
     }
-  }, [editOrder, reset]);
+
+    clearSelectedImage();
+  }, [editOrder, open, reset]);
 
   // Auto-calculate totalCost when qty/unitCost changes
   const qty = watch('quantity');
@@ -263,6 +304,7 @@ function OrderFormDialog({
       totalCost: values.totalCost !== '' ? Number(values.totalCost) : null,
       status: values.status,
       remark: values.remark || undefined,
+      imageData: imageData ?? undefined,
     };
 
     if (isEdit) {
@@ -326,6 +368,45 @@ function OrderFormDialog({
             </Label>
             <Input {...register('type')} placeholder="เช่น Fiber, Switch" />
             {errors.type && <p className="text-xs text-destructive">{errors.type.message}</p>}
+
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageChange}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-2 w-full justify-start gap-2 border-dashed text-muted-foreground"
+              onClick={() => imageInputRef.current?.click()}
+            >
+              <Upload className="h-4 w-4" />
+              เพิ่มรูป
+            </Button>
+            {imageName && (
+              <p className="text-xs text-muted-foreground">ไฟล์ที่เลือก: {imageName}</p>
+            )}
+            {!imageName && editOrder?.hasImage && (
+              <p className="text-xs text-muted-foreground">รายการนี้มีรูปภาพอยู่แล้ว</p>
+            )}
+            {imageData && (
+              <div className="space-y-2 pt-1">
+                <img
+                  src={imageData}
+                  alt="ตัวอย่างรูปที่เลือก"
+                  className="max-h-40 w-full rounded border object-contain"
+                />
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground underline underline-offset-2"
+                  onClick={clearSelectedImage}
+                >
+                  ลบรูปที่เลือก
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Brand */}
