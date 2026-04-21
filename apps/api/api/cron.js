@@ -41,9 +41,9 @@ var __toESM = (mod, isNodeMode, target) => (
 );
 var __toCommonJS = (mod) => __copyProps(__defProp({}, '__esModule', { value: true }), mod);
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/fetch/cookies.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/fetch/cookies.js
 var require_cookies = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/fetch/cookies.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/fetch/cookies.js'(
     exports2,
     module2
   ) {
@@ -270,9 +270,9 @@ var require_cookies = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/package.json
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/package.json
 var require_package = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/package.json'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/package.json'(
     exports2,
     module2
   ) {
@@ -326,9 +326,9 @@ var require_package = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/errors.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/errors.js
 var require_errors = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/errors.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/errors.js'(
     exports2,
     module2
   ) {
@@ -370,9 +370,9 @@ var require_errors = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/fetch/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/fetch/index.js
 var require_fetch = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/fetch/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/fetch/index.js'(
     exports2,
     module2
   ) {
@@ -618,9 +618,9 @@ var require_fetch = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/shared/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/shared/index.js
 var require_shared = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/shared/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/shared/index.js'(
     exports2,
     module2
   ) {
@@ -1160,9 +1160,9 @@ var require_shared = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-funcs/mime-types.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-funcs/mime-types.js
 var require_mime_types = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-funcs/mime-types.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-funcs/mime-types.js'(
     exports2,
     module2
   ) {
@@ -3384,9 +3384,9 @@ var require_mime_types = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/punycode/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/punycode/index.js
 var require_punycode = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/punycode/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/punycode/index.js'(
     exports2,
     module2
   ) {
@@ -3629,9 +3629,9 @@ var require_punycode = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/base64/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/base64/index.js
 var require_base64 = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/base64/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/base64/index.js'(
     exports2,
     module2
   ) {
@@ -3736,9 +3736,9 @@ var require_base64 = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/qp/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/qp/index.js
 var require_qp = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/qp/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/qp/index.js'(
     exports2,
     module2
   ) {
@@ -3917,9 +3917,9 @@ var require_qp = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-funcs/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-funcs/index.js
 var require_mime_funcs = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-funcs/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-funcs/index.js'(
     exports2,
     module2
   ) {
@@ -4462,9 +4462,9 @@ var require_mime_funcs = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/addressparser/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/addressparser/index.js
 var require_addressparser = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/addressparser/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/addressparser/index.js'(
     exports2,
     module2
   ) {
@@ -4751,9 +4751,9 @@ var require_addressparser = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/last-newline.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/last-newline.js
 var require_last_newline = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/last-newline.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/last-newline.js'(
     exports2,
     module2
   ) {
@@ -4787,9 +4787,9 @@ var require_last_newline = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/le-windows.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/le-windows.js
 var require_le_windows = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/le-windows.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/le-windows.js'(
     exports2,
     module2
   ) {
@@ -4832,9 +4832,9 @@ var require_le_windows = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/le-unix.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/le-unix.js
 var require_le_unix = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/le-unix.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/le-unix.js'(
     exports2,
     module2
   ) {
@@ -4870,9 +4870,9 @@ var require_le_unix = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/index.js
 var require_mime_node = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mime-node/index.js'(
     exports2,
     module2
   ) {
@@ -5910,9 +5910,9 @@ var require_mime_node = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mail-composer/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mail-composer/index.js
 var require_mail_composer = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mail-composer/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mail-composer/index.js'(
     exports2,
     module2
   ) {
@@ -6460,9 +6460,9 @@ var require_mail_composer = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/message-parser.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/message-parser.js
 var require_message_parser = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/message-parser.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/message-parser.js'(
     exports2,
     module2
   ) {
@@ -6595,9 +6595,9 @@ var require_message_parser = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/relaxed-body.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/relaxed-body.js
 var require_relaxed_body = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/relaxed-body.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/relaxed-body.js'(
     exports2,
     module2
   ) {
@@ -6718,9 +6718,9 @@ var require_relaxed_body = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/sign.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/sign.js
 var require_sign = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/sign.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/sign.js'(
     exports2,
     module2
   ) {
@@ -6812,9 +6812,9 @@ var require_sign = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/index.js
 var require_dkim = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/dkim/index.js'(
     exports2,
     module2
   ) {
@@ -7014,9 +7014,9 @@ var require_dkim = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
 var require_http_proxy_client = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js'(
     exports2,
     module2
   ) {
@@ -7121,9 +7121,9 @@ var require_http_proxy_client = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mailer/mail-message.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mailer/mail-message.js
 var require_mail_message = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mailer/mail-message.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mailer/mail-message.js'(
     exports2,
     module2
   ) {
@@ -7413,9 +7413,9 @@ var require_mail_message = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mailer/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mailer/index.js
 var require_mailer = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mailer/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/mailer/index.js'(
     exports2,
     module2
   ) {
@@ -7808,9 +7808,9 @@ var require_mailer = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/data-stream.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/data-stream.js
 var require_data_stream = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/data-stream.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/data-stream.js'(
     exports2,
     module2
   ) {
@@ -7900,9 +7900,9 @@ var require_data_stream = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/index.js
 var require_smtp_connection = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-connection/index.js'(
     exports2,
     module2
   ) {
@@ -9545,9 +9545,9 @@ var require_smtp_connection = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/xoauth2/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/xoauth2/index.js
 var require_xoauth2 = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/xoauth2/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/xoauth2/index.js'(
     exports2,
     module2
   ) {
@@ -9923,9 +9923,9 @@ var require_xoauth2 = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-pool/pool-resource.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-pool/pool-resource.js
 var require_pool_resource = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-pool/pool-resource.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-pool/pool-resource.js'(
     exports2,
     module2
   ) {
@@ -10151,9 +10151,9 @@ var require_pool_resource = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/well-known/services.json
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/well-known/services.json
 var require_services = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/well-known/services.json'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/well-known/services.json'(
     exports2,
     module2
   ) {
@@ -10694,9 +10694,9 @@ var require_services = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/well-known/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/well-known/index.js
 var require_well_known = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/well-known/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/well-known/index.js'(
     exports2,
     module2
   ) {
@@ -10733,9 +10733,9 @@ var require_well_known = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-pool/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-pool/index.js
 var require_smtp_pool = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-pool/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-pool/index.js'(
     exports2,
     module2
   ) {
@@ -11282,9 +11282,9 @@ var require_smtp_pool = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-transport/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-transport/index.js
 var require_smtp_transport = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-transport/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/smtp-transport/index.js'(
     exports2,
     module2
   ) {
@@ -11632,9 +11632,9 @@ var require_smtp_transport = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/sendmail-transport/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/sendmail-transport/index.js
 var require_sendmail_transport = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/sendmail-transport/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/sendmail-transport/index.js'(
     exports2,
     module2
   ) {
@@ -11810,9 +11810,9 @@ var require_sendmail_transport = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/stream-transport/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/stream-transport/index.js
 var require_stream_transport = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/stream-transport/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/stream-transport/index.js'(
     exports2,
     module2
   ) {
@@ -11928,9 +11928,9 @@ var require_stream_transport = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/json-transport/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/json-transport/index.js
 var require_json_transport = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/json-transport/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/json-transport/index.js'(
     exports2,
     module2
   ) {
@@ -12000,9 +12000,9 @@ var require_json_transport = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/ses-transport/index.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/ses-transport/index.js
 var require_ses_transport = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/ses-transport/index.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/ses-transport/index.js'(
     exports2,
     module2
   ) {
@@ -12205,9 +12205,9 @@ var require_ses_transport = __commonJS({
   },
 });
 
-// ../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/nodemailer.js
+// ../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/nodemailer.js
 var require_nodemailer = __commonJS({
-  '../../node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/nodemailer.js'(
+  '../../../spare-part-inventory/node_modules/.pnpm/nodemailer@8.0.5/node_modules/nodemailer/lib/nodemailer.js'(
     exports2,
     module2
   ) {

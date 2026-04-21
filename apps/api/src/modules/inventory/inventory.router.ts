@@ -145,6 +145,12 @@ inventoryRouter.delete('/:id', requireRole('ADMIN'), async (req, res, next) => {
     if (activeBorrow)
       throw new AppError(409, 'CONFLICT', 'Cannot delete — item has an active borrow transaction');
 
+    const anyBorrow = await prisma.borrowTransaction.findFirst({
+      where: { sparePartId: id },
+      select: { id: true },
+    });
+    if (anyBorrow) throw new AppError(409, 'CONFLICT', 'Cannot delete — item has borrow history');
+
     await prisma.sparePart.delete({ where: { id } });
     res.json({ message: 'Spare part deleted' });
   } catch (err) {

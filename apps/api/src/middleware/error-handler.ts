@@ -43,6 +43,15 @@ export function errorHandler(
       res.status(409).json({ error: 'CONFLICT', message: 'Record already exists' });
       return;
     }
+    if (err.code === 'P2003') {
+      res
+        .status(409)
+        .json({
+          error: 'CONFLICT',
+          message: 'Cannot delete — record is referenced by another record',
+        });
+      return;
+    }
     if (err.code === 'P2025') {
       res.status(404).json({ error: 'NOT_FOUND', message: 'Record not found' });
       return;
