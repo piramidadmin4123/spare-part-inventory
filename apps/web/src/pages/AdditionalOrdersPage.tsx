@@ -317,189 +317,199 @@ function OrderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'แก้ไขรายการสั่งซื้อ' : 'เพิ่มรายการสั่งซื้อ'}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl overflow-hidden p-0">
+        <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
+          <DialogHeader className="px-6 pt-6">
+            <DialogTitle>{isEdit ? 'แก้ไขรายการสั่งซื้อ' : 'เพิ่มรายการสั่งซื้อ'}</DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-4">
-          {/* Site */}
-          <div className="space-y-1">
-            <Label>Site</Label>
-            <Select
-              value={watch('siteId') || 'none'}
-              onValueChange={(v) => setValue('siteId', v === 'none' ? '' : v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="เลือก Site" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— ไม่ระบุ —</SelectItem>
-                {sites.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.code} — {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Status */}
-          <div className="space-y-1">
-            <Label>สถานะ</Label>
-            <Select value={watch('status')} onValueChange={(v) => setValue('status', v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
-                  <SelectItem key={val} value={val}>
-                    {cfg.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Type */}
-          <div className="space-y-1">
-            <Label>
-              Type <span className="text-destructive">*</span>
-            </Label>
-            <Input {...register('type')} placeholder="เช่น Fiber, Switch" />
-            {errors.type && <p className="text-xs text-destructive">{errors.type.message}</p>}
-
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageChange}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-2 w-full justify-start gap-2 border-dashed text-muted-foreground"
-              onClick={() => imageInputRef.current?.click()}
-            >
-              <Upload className="h-4 w-4" />
-              เพิ่มรูป
-            </Button>
-            {imageName && (
-              <p className="text-xs text-muted-foreground">ไฟล์ที่เลือก: {imageName}</p>
-            )}
-            {!imageName && editOrder?.hasImage && (
-              <p className="text-xs text-muted-foreground">รายการนี้มีรูปภาพอยู่แล้ว</p>
-            )}
-            {imageData && (
-              <div className="space-y-2 pt-1">
-                <div className="max-h-32 overflow-auto rounded border bg-muted/20 p-2">
-                  <img
-                    src={imageData}
-                    alt="ตัวอย่างรูปที่เลือก"
-                    className="mx-auto max-h-24 w-auto rounded object-contain"
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground underline underline-offset-2"
-                  onClick={clearSelectedImage}
+          <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <div className="grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-y-auto px-6 pb-4 pt-1">
+              {/* Site */}
+              <div className="space-y-1">
+                <Label>Site</Label>
+                <Select
+                  value={watch('siteId') || 'none'}
+                  onValueChange={(v) => setValue('siteId', v === 'none' ? '' : v)}
                 >
-                  ลบรูปที่เลือก
-                </button>
+                  <SelectTrigger>
+                    <SelectValue placeholder="เลือก Site" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— ไม่ระบุ —</SelectItem>
+                    {sites.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.code} — {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
 
-          {/* Brand */}
-          <div className="space-y-1">
-            <Label>Brand</Label>
-            <Select
-              value={watch('brandName') || 'custom'}
-              onValueChange={(v) => setValue('brandName', v === 'custom' ? '' : v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="เลือกหรือพิมพ์ brand" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="custom">— พิมพ์เอง —</SelectItem>
-                {brands.map((b) => (
-                  <SelectItem key={b.id} value={b.name}>
-                    {b.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              {...register('brandName')}
-              placeholder="หรือพิมพ์ชื่อ Brand ใหม่"
-              className="mt-1"
-            />
-          </div>
+              {/* Status */}
+              <div className="space-y-1">
+                <Label>สถานะ</Label>
+                <Select value={watch('status')} onValueChange={(v) => setValue('status', v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
+                      <SelectItem key={val} value={val}>
+                        {cfg.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Model Code */}
-          <div className="space-y-1">
-            <Label>Model Code</Label>
-            <Input {...register('modelCode')} placeholder="เช่น UFP542D31-03" />
-          </div>
+              {/* Type */}
+              <div className="space-y-1">
+                <Label>
+                  Type <span className="text-destructive">*</span>
+                </Label>
+                <Input {...register('type')} placeholder="เช่น Fiber, Switch" />
+                {errors.type && <p className="text-xs text-destructive">{errors.type.message}</p>}
 
-          {/* Product Name */}
-          <div className="space-y-1">
-            <Label>
-              Product Name <span className="text-destructive">*</span>
-            </Label>
-            <Input {...register('productName')} placeholder="ชื่อสินค้า" />
-            {errors.productName && (
-              <p className="text-xs text-destructive">{errors.productName.message}</p>
-            )}
-          </div>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-2 w-full justify-start gap-2 border-dashed text-muted-foreground"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4" />
+                  เพิ่มรูป
+                </Button>
+                {imageName && (
+                  <p className="text-xs text-muted-foreground">ไฟล์ที่เลือก: {imageName}</p>
+                )}
+                {!imageName && editOrder?.hasImage && (
+                  <p className="text-xs text-muted-foreground">รายการนี้มีรูปภาพอยู่แล้ว</p>
+                )}
+                {imageData && (
+                  <div className="space-y-2 pt-1">
+                    <div className="max-h-32 overflow-auto rounded border bg-muted/20 p-2">
+                      <img
+                        src={imageData}
+                        alt="ตัวอย่างรูปที่เลือก"
+                        className="mx-auto max-h-24 w-auto rounded object-contain"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline underline-offset-2"
+                      onClick={clearSelectedImage}
+                    >
+                      ลบรูปที่เลือก
+                    </button>
+                  </div>
+                )}
+              </div>
 
-          {/* Qty */}
-          <div className="space-y-1">
-            <Label>
-              Qty <span className="text-destructive">*</span>
-            </Label>
-            <Input type="number" min={1} {...register('quantity')} />
-            {errors.quantity && (
-              <p className="text-xs text-destructive">{errors.quantity.message}</p>
-            )}
-          </div>
+              {/* Brand */}
+              <div className="space-y-1">
+                <Label>Brand</Label>
+                <Select
+                  value={watch('brandName') || 'custom'}
+                  onValueChange={(v) => setValue('brandName', v === 'custom' ? '' : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="เลือกหรือพิมพ์ brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="custom">— พิมพ์เอง —</SelectItem>
+                    {brands.map((b) => (
+                      <SelectItem key={b.id} value={b.name}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  {...register('brandName')}
+                  placeholder="หรือพิมพ์ชื่อ Brand ใหม่"
+                  className="mt-1"
+                />
+              </div>
 
-          {/* Unit Cost */}
-          <div className="space-y-1">
-            <Label>Unit Cost (บาท)</Label>
-            <Input type="number" min={0} step="0.01" {...register('unitCost')} placeholder="0.00" />
-          </div>
+              {/* Model Code */}
+              <div className="space-y-1">
+                <Label>Model Code</Label>
+                <Input {...register('modelCode')} placeholder="เช่น UFP542D31-03" />
+              </div>
 
-          {/* Total Cost */}
-          <div className="col-span-2 space-y-1">
-            <Label>Total Cost (บาท) — คำนวณอัตโนมัติ Qty × Unit Cost</Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              {...register('totalCost')}
-              placeholder="0.00"
-            />
-          </div>
+              {/* Product Name */}
+              <div className="space-y-1">
+                <Label>
+                  Product Name <span className="text-destructive">*</span>
+                </Label>
+                <Input {...register('productName')} placeholder="ชื่อสินค้า" />
+                {errors.productName && (
+                  <p className="text-xs text-destructive">{errors.productName.message}</p>
+                )}
+              </div>
 
-          {/* Remark */}
-          <div className="col-span-2 space-y-1">
-            <Label>Remark</Label>
-            <Textarea {...register('remark')} placeholder="หมายเหตุ..." rows={2} />
-          </div>
+              {/* Qty */}
+              <div className="space-y-1">
+                <Label>
+                  Qty <span className="text-destructive">*</span>
+                </Label>
+                <Input type="number" min={1} {...register('quantity')} />
+                {errors.quantity && (
+                  <p className="text-xs text-destructive">{errors.quantity.message}</p>
+                )}
+              </div>
 
-          {/* Actions */}
-          <div className="col-span-2 flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              ยกเลิก
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEdit ? 'บันทึก' : 'เพิ่มรายการ'}
-            </Button>
-          </div>
-        </form>
+              {/* Unit Cost */}
+              <div className="space-y-1">
+                <Label>Unit Cost (บาท)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  {...register('unitCost')}
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Total Cost */}
+              <div className="col-span-2 space-y-1">
+                <Label>Total Cost (บาท) — คำนวณอัตโนมัติ Qty × Unit Cost</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  {...register('totalCost')}
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Remark */}
+              <div className="col-span-2 space-y-1">
+                <Label>Remark</Label>
+                <Textarea {...register('remark')} placeholder="หมายเหตุ..." rows={2} />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 border-t px-6 py-4">
+              <Button type="button" variant="outline" onClick={onClose}>
+                ยกเลิก
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEdit ? 'บันทึก' : 'เพิ่มรายการ'}
+              </Button>
+            </div>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
