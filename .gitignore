@@ -16,6 +16,7 @@ apps/web/dist/
 
 # Prisma
 apps/api/prisma/migrations/*.sql.bak
+apps/api/api/prisma-client/
 
 # Logs
 *.log

@@ -2,13 +2,11 @@
   "functions": {
     "api/index.js": {
       "memory": 1024,
-      "maxDuration": 30,
-      "includeFiles": "../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**"
+      "maxDuration": 30
     },
     "api/cron.js": {
       "memory": 512,
-      "maxDuration": 60,
-      "includeFiles": "../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**"
+      "maxDuration": 60
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
