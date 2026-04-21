@@ -17,10 +17,9 @@
     "declaration": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@prisma/client": ["./api/prisma-client"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "api", "prisma/seed.ts"],
-  "exclude": ["node_modules", "dist", "api/prisma-client"]
+  "exclude": ["node_modules", "dist"]
 }
