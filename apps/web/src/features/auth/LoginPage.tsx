@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Lock, Mail } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { loginSchema, type LoginInput } from '@spare-part/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,6 +109,13 @@ export function LoginPage() {
             {msLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MicrosoftIcon />}
             เข้าสู่ระบบด้วย Microsoft (O365)
           </Button>
+
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            ยังไม่มีบัญชี?{' '}
+            <Link to="/register" className="font-medium text-primary underline underline-offset-4">
+              สมัครบัญชีปกติ
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>
