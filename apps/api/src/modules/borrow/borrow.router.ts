@@ -23,6 +23,10 @@ export const borrowRouter: IRouter = Router();
 
 borrowRouter.use(requireAuth);
 
+function isBefore(left: Date | null | undefined, right: Date | null | undefined): boolean {
+  return Boolean(left && right && left.getTime() < right.getTime());
+}
+
 const borrowInclude = {
   sparePart: { include: { site: true, equipmentType: true, brand: true } },
   borrower: { select: { id: true, name: true, email: true, role: true } },
@@ -142,6 +146,19 @@ borrowRouter.patch('/:id', async (req, res, next) => {
     const parsed = editBorrowSchema.safeParse(req.body);
     if (!parsed.success)
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid input', parsed.error.issues);
+
+    const nextDateStart =
+      parsed.data.dateStart !== undefined ? new Date(parsed.data.dateStart) : tx.dateStart;
+    const nextExpectedReturn =
+      parsed.data.expectedReturn !== undefined
+        ? new Date(parsed.data.expectedReturn)
+        : tx.expectedReturn;
+
+    if (isBefore(nextExpectedReturn, nextDateStart)) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'วันที่คาดว่าจะคืนต้องไม่ก่อนวันที่เริ่มยืม', [
+        { path: 'expectedReturn', message: 'วันที่คาดว่าจะคืนต้องไม่ก่อนวันที่เริ่มยืม' },
+      ]);
+    }
 
     const updated = await prisma.borrowTransaction.update({
       where: { id },
@@ -296,6 +313,13 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
     if (tx.status !== 'APPROVED')
       throw new AppError(409, 'CONFLICT', `Cannot return a transaction with status "${tx.status}"`);
 
+    const actualReturn = new Date(parsed.data.actualReturn);
+    if (tx.dateStart && actualReturn < tx.dateStart) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'วันที่คืนต้องไม่ก่อนวันที่ยืม', [
+        { path: 'actualReturn', message: 'วันที่คืนต้องไม่ก่อนวันที่ยืม' },
+      ]);
+    }
+
     // only borrower or manager/admin can return
     const user = req.user!;
     if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
@@ -306,7 +330,7 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
         where: { id },
         data: {
           status: 'RETURNED',
-          actualReturn: new Date(parsed.data.actualReturn),
+          actualReturn,
           borrowerRemark: parsed.data.borrowerRemark ?? tx.borrowerRemark,
         },
         include: borrowInclude,

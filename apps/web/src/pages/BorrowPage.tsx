@@ -134,6 +134,7 @@ function CreateBorrowDialog({
       borrowerEmail: user?.email ?? '',
     },
   });
+  const dateStartValue = watch('dateStart');
 
   function onSubmit(data: BorrowRequestInput) {
     createBorrow.mutate(data, {
@@ -214,7 +215,14 @@ function CreateBorrowDialog({
             </div>
             <div className="space-y-1">
               <Label>วันที่คาดว่าจะคืน</Label>
-              <Input type="datetime-local" {...register('expectedReturn')} />
+              <Input
+                type="datetime-local"
+                min={dateStartValue || undefined}
+                {...register('expectedReturn')}
+              />
+              {errors.expectedReturn && (
+                <p className="text-xs text-destructive">{errors.expectedReturn.message}</p>
+              )}
             </div>
           </div>
 
@@ -318,9 +326,11 @@ function ReturnDialog({
   onOpenChange: (v: boolean) => void;
   tx: BorrowTransaction | null;
 }) {
-  const [returnDate, setReturnDate] = useState(new Date().toISOString().slice(0, 16));
+  const [returnDate, setReturnDate] = useState(() => toDatetimeLocal(new Date().toISOString()));
   const [remark, setRemark] = useState('');
   const returnBorrow = useReturnBorrow();
+  const minReturnDate = tx?.dateStart ? toDatetimeLocal(tx.dateStart) : '';
+  const isReturnBeforeBorrow = Boolean(minReturnDate && returnDate && returnDate < minReturnDate);
 
   if (!tx) return null;
 
@@ -338,9 +348,13 @@ function ReturnDialog({
             <Label>วันที่คืน *</Label>
             <Input
               type="datetime-local"
+              min={minReturnDate || undefined}
               value={returnDate}
               onChange={(e) => setReturnDate(e.target.value)}
             />
+            {isReturnBeforeBorrow && (
+              <p className="text-xs text-destructive">วันที่คืนต้องไม่ก่อนวันที่ยืม</p>
+            )}
           </div>
           <div className="space-y-1">
             <Label>หมายเหตุ</Label>
@@ -362,12 +376,14 @@ function ReturnDialog({
           </Button>
           <Button
             onClick={() =>
-              returnBorrow.mutate(
-                { id: tx.id, actualReturn: new Date(returnDate).toISOString(), remark },
-                { onSuccess: () => onOpenChange(false) }
-              )
+              isReturnBeforeBorrow
+                ? toast.error('วันที่คืนต้องไม่ก่อนวันที่ยืม')
+                : returnBorrow.mutate(
+                    { id: tx.id, actualReturn: new Date(returnDate).toISOString(), remark },
+                    { onSuccess: () => onOpenChange(false) }
+                  )
             }
-            disabled={returnBorrow.isPending || !returnDate}
+            disabled={returnBorrow.isPending || !returnDate || isReturnBeforeBorrow}
           >
             {returnBorrow.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             ยืนยันคืน
@@ -402,10 +418,12 @@ function EditBorrowDialog({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<EditBorrowInput>({
     resolver: zodResolver(editBorrowSchema),
   });
+  const editDateStartValue = watch('dateStart');
 
   useEffect(() => {
     if (tx) {
@@ -467,7 +485,14 @@ function EditBorrowDialog({
             </div>
             <div className="space-y-1">
               <Label>วันที่คาดว่าจะคืน</Label>
-              <Input type="datetime-local" {...register('expectedReturn')} />
+              <Input
+                type="datetime-local"
+                min={editDateStartValue || undefined}
+                {...register('expectedReturn')}
+              />
+              {errors.expectedReturn && (
+                <p className="text-xs text-destructive">{errors.expectedReturn.message}</p>
+              )}
             </div>
           </div>
 
