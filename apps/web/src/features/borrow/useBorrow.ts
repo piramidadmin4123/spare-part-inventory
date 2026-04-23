@@ -53,6 +53,19 @@ export function useRejectBorrow() {
   });
 }
 
+export function useRestoreBorrow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => borrowApi.restore(id).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: BORROW_KEY });
+      toast.success('คืนสถานะกลับเป็นรออนุมัติแล้ว');
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? 'เกิดข้อผิดพลาด'),
+  });
+}
+
 export function useReturnBorrow() {
   const qc = useQueryClient();
   return useMutation({

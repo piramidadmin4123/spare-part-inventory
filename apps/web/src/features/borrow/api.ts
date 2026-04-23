@@ -19,6 +19,7 @@ export const borrowApi = {
     apiClient.patch<BorrowTransaction>(`/api/borrow/${id}/approve`, data),
   reject: (id: string, data: { approverRemark?: string }) =>
     apiClient.patch<BorrowTransaction>(`/api/borrow/${id}/reject`, data),
+  restore: (id: string) => apiClient.patch<BorrowTransaction>(`/api/borrow/${id}/restore`),
   return: (id: string, data: { actualReturn: string; borrowerRemark?: string }) =>
     apiClient.patch<BorrowTransaction>(`/api/borrow/${id}/return`, data),
   cancel: (id: string, data?: { borrowerRemark?: string }) =>

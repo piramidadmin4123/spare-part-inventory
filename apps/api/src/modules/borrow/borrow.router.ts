@@ -300,6 +300,46 @@ borrowRouter.patch('/:id/reject', requireRole('ADMIN', 'MANAGER'), async (req, r
   }
 });
 
+// PATCH /api/borrow/:id/restore — ADMIN, MANAGER
+borrowRouter.patch('/:id/restore', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
+  try {
+    const id = req.params.id as string;
+
+    const tx = await prisma.borrowTransaction.findUnique({ where: { id } });
+    if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
+    if (tx.status !== 'REJECTED')
+      throw new AppError(
+        409,
+        'CONFLICT',
+        `Cannot restore a transaction with status "${tx.status}"`
+      );
+
+    const active = await prisma.borrowTransaction.findFirst({
+      where: {
+        id: { not: id },
+        sparePartId: tx.sparePartId,
+        status: { in: ['PENDING', 'APPROVED'] },
+      },
+    });
+    if (active)
+      throw new AppError(409, 'CONFLICT', 'This item already has an active borrow request');
+
+    const updated = await prisma.borrowTransaction.update({
+      where: { id },
+      data: {
+        status: 'PENDING',
+        approverId: null,
+        approverRemark: null,
+      },
+      include: borrowInclude,
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PATCH /api/borrow/:id/return
 borrowRouter.patch('/:id/return', async (req, res, next) => {
   try {

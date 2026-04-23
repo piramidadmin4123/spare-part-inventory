@@ -211,6 +211,19 @@
 3. `SparePart.status = 'IN_STOCK'` (หรือ quantity += 1)
 4. Create `AuditLog` entry
 
+### PATCH /api/borrow/:id/restore (Manager)
+
+**Description:**
+
+- คืนสถานะคำขอที่ถูกปฏิเสธกลับไปเป็น `PENDING`
+
+**Side effects:**
+
+1. `BorrowTransaction.status = 'PENDING'`
+2. `BorrowTransaction.approverId = null`
+3. `BorrowTransaction.approverRemark = null`
+4. `SparePart.status` และ stock ไม่เปลี่ยน
+
 ### Overdue Use Case (Borrow / Return page)
 
 **Actor:** Borrower / Manager

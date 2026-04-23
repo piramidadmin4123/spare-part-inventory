@@ -65,6 +65,7 @@ import {
   useCreateBorrow,
   useApproveBorrow,
   useRejectBorrow,
+  useRestoreBorrow,
   useReturnBorrow,
   useCancelBorrow,
   useUpdateBorrow,
@@ -729,6 +730,7 @@ export function BorrowPage() {
   const { data, isLoading } = useBorrows({ status: statusFilter, page, limit: LIMIT });
   const approve = useApproveBorrow();
   const reject = useRejectBorrow();
+  const restore = useRestoreBorrow();
   const cancel = useCancelBorrow();
   const deleteBorrow = useDeleteBorrow();
 
@@ -872,7 +874,14 @@ export function BorrowPage() {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={tx.status} />
-                        {isOverdue && <Badge variant="destructive">ล่าช้า {overdueDays} วัน</Badge>}
+                        {isOverdue && (
+                          <Badge
+                            variant="destructive"
+                            className="whitespace-nowrap px-2 py-0.5 text-[11px] leading-none"
+                          >
+                            ล่าช้า {overdueDays} วัน
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
@@ -903,6 +912,21 @@ export function BorrowPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
+                        {isManager && tx.status === 'REJECTED' && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-blue-600 hover:text-blue-700"
+                            title="คืนสถานะรออนุมัติ"
+                            disabled={restore.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              restore.mutate(tx.id);
+                            }}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
                         {canApproveReject && (
                           <>
                             <Button
@@ -1056,7 +1080,10 @@ export function BorrowPage() {
                   {detailTarget.sparePart.site.code}
                 </Badge>
                 {detailTarget.status === 'APPROVED' && detailOverdueDays > 0 && (
-                  <Badge variant="destructive" className="px-2 py-0.5 text-[11px]">
+                  <Badge
+                    variant="destructive"
+                    className="whitespace-nowrap px-2 py-0.5 text-[11px] leading-none"
+                  >
                     ล่าช้า {detailOverdueDays} วัน
                   </Badge>
                 )}
@@ -1086,7 +1113,10 @@ export function BorrowPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge status={detailTarget.status} />
                       {detailTarget.status === 'APPROVED' && detailOverdueDays > 0 && (
-                        <Badge variant="destructive" className="px-2 py-0.5 text-[11px]">
+                        <Badge
+                          variant="destructive"
+                          className="whitespace-nowrap px-2 py-0.5 text-[11px] leading-none"
+                        >
                           ล่าช้า {detailOverdueDays} วัน
                         </Badge>
                       )}

@@ -208,7 +208,6 @@ export async function notifyBorrowApproved(info: BorrowInfo & { approverName: st
 export async function notifyBorrowRejected(
   info: BorrowInfo & { approverName: string; reason?: string }
 ) {
-  const adminEmails = await getAdminEmails();
   const facts = [
     { name: 'อุปกรณ์', value: `${info.modelCode} — ${info.productName}` },
     { name: 'Site', value: info.siteCode },
@@ -216,9 +215,7 @@ export async function notifyBorrowRejected(
     ...(info.reason ? [{ name: 'เหตุผล', value: info.reason }] : []),
   ];
 
-  const emailTargets = [...(info.borrowerEmail ? [info.borrowerEmail] : []), ...adminEmails].filter(
-    (v, i, a) => a.indexOf(v) === i
-  );
+  const emailTargets = info.borrowerEmail ? [info.borrowerEmail] : [];
 
   await Promise.all([
     sendTeams({
