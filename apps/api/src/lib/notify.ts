@@ -14,6 +14,7 @@ const EXTRA_NOTIFY_EMAILS = (process.env.NOTIFY_EMAILS ?? '')
   .map((e) => e.trim())
   .filter(Boolean);
 const APP_URL = process.env.APP_URL ?? 'http://localhost:5173';
+const BORROW_PAGE_URL = 'https://spare-part-inventory-web.vercel.app/borrow';
 
 async function getAdminEmails(): Promise<string[]> {
   const users = await prisma.user.findMany({
@@ -159,7 +160,7 @@ export async function notifyNewBorrow(info: BorrowInfo) {
       title: '📋 คำขอยืมใหม่ รออนุมัติ',
       text: `**${info.borrowerName}** ขอยืม **${info.modelCode}**`,
       facts,
-      actionUrl: `${APP_URL}/borrow`,
+      actionUrl: BORROW_PAGE_URL,
       actionLabel: 'อนุมัติ / ปฏิเสธ',
       themeColor: 'F59E0B',
     }),
@@ -169,7 +170,7 @@ export async function notifyNewBorrow(info: BorrowInfo) {
         subject: `[รออนุมัติ] คำขอยืม ${info.modelCode} — ${info.borrowerName}`,
         title: 'มีคำขอยืม Spare Part ใหม่',
         rows: facts.map((f) => ({ label: f.name, value: f.value })),
-        bodyText: 'กรุณาเข้าระบบเพื่ออนุมัติหรือปฏิเสธคำขอ',
+        bodyText: `กรุณาเข้าระบบเพื่ออนุมัติหรือปฏิเสธคำขอ<br/><a href="${BORROW_PAGE_URL}" target="_blank" rel="noreferrer" style="display:inline-block;margin-top:10px;padding:10px 14px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">ไปหน้า ยืม / คืน</a>`,
       }),
   ]);
 }
@@ -299,7 +300,7 @@ export async function notifyDueReturn(
           title: '⏰ แจ้งเตือน: ใกล้ถึงกำหนดคืนอุปกรณ์',
           text: `**${item.borrowerName}** กรุณาคืน **${item.modelCode}** ภายในวันพรุ่งนี้`,
           facts,
-          actionUrl: `${APP_URL}/borrow`,
+          actionUrl: BORROW_PAGE_URL,
           actionLabel: 'ดูรายการยืม',
           themeColor: 'F59E0B',
         }),
