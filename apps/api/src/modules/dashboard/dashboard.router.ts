@@ -9,23 +9,41 @@ dashboardRouter.use(requireAuth);
 // GET /api/dashboard/summary
 dashboardRouter.get('/summary', async (_req, res, next) => {
   try {
-    const [totalParts, byStatus, pendingBorrows, borrowByStatus, allNonRetiredParts] =
-      await Promise.all([
-        prisma.sparePart.count(),
-        prisma.sparePart.groupBy({ by: ['status'], _count: { id: true } }),
-        prisma.borrowTransaction.count({ where: { status: 'PENDING' } }),
-        prisma.borrowTransaction.groupBy({ by: ['status'], _count: { id: true } }),
-        prisma.sparePart.findMany({
-          where: { status: { notIn: ['DECOMMISSIONED', 'LOST'] } },
-          select: { quantity: true, minStock: true },
-        }),
-      ]);
+    const now = new Date();
+
+    const [
+      totalParts,
+      byStatus,
+      pendingBorrows,
+      borrowByStatus,
+      overdueBorrowers,
+      allNonRetiredParts,
+    ] = await Promise.all([
+      prisma.sparePart.count(),
+      prisma.sparePart.groupBy({ by: ['status'], _count: { id: true } }),
+      prisma.borrowTransaction.count({ where: { status: 'PENDING' } }),
+      prisma.borrowTransaction.groupBy({ by: ['status'], _count: { id: true } }),
+      prisma.borrowTransaction.groupBy({
+        by: ['borrowerId'],
+        where: {
+          status: 'APPROVED',
+          expectedReturn: { lt: now },
+          actualReturn: null,
+        },
+        _count: { _all: true },
+      }),
+      prisma.sparePart.findMany({
+        where: { status: { notIn: ['DECOMMISSIONED', 'LOST'] } },
+        select: { quantity: true, minStock: true },
+      }),
+    ]);
 
     const lowStock = allNonRetiredParts.filter((p) => p.quantity <= p.minStock).length;
 
     res.json({
       totalParts,
       pendingBorrows,
+      overdueBorrowers: overdueBorrowers.length,
       lowStock,
       byStatus: byStatus.map((s) => ({ status: s.status, count: s._count.id })),
       borrowByStatus: borrowByStatus.map((s) => ({ status: s.status, count: s._count.id })),

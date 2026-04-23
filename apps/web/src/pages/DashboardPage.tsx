@@ -22,6 +22,7 @@ import { apiClient } from '@/lib/api-client';
 interface Summary {
   totalParts: number;
   pendingBorrows: number;
+  overdueBorrowers: number;
   lowStock: number;
   byStatus: { status: string; count: number }[];
   borrowByStatus: { status: string; count: number }[];
@@ -183,7 +184,7 @@ export function DashboardPage() {
 
       <div className="space-y-6 p-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           <KpiCard
             icon={Package}
             label="Spare Parts ทั้งหมด"
@@ -210,6 +211,13 @@ export function DashboardPage() {
             value={summary?.lowStock ?? '—'}
             sub="รายการ"
             color="bg-red-500"
+          />
+          <KpiCard
+            icon={AlertTriangle}
+            label="คืนล่าช้า"
+            value={summary?.overdueBorrowers ?? '—'}
+            sub="จำนวนคน"
+            color="bg-rose-500"
           />
         </div>
 
