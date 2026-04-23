@@ -65,7 +65,6 @@ import {
   useCreateBorrow,
   useApproveBorrow,
   useRejectBorrow,
-  useRestoreBorrow,
   useReturnBorrow,
   useCancelBorrow,
   useUpdateBorrow,
@@ -739,7 +738,6 @@ export function BorrowPage() {
   const { data, isLoading } = useBorrows({ status: statusFilter, page, limit: LIMIT });
   const approve = useApproveBorrow();
   const reject = useRejectBorrow();
-  const restore = useRestoreBorrow();
   const cancel = useCancelBorrow();
   const deleteBorrow = useDeleteBorrow();
 
@@ -921,21 +919,6 @@ export function BorrowPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {isManager && tx.status === 'REJECTED' && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-blue-600 hover:text-blue-700"
-                            title="คืนสถานะรออนุมัติ"
-                            disabled={restore.isPending}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              restore.mutate(tx.id);
-                            }}
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                        )}
                         {canApproveReject && (
                           <>
                             <Button
