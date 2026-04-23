@@ -7,6 +7,7 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  Eye,
   CheckCircle,
   XCircle,
   RotateCcw,
@@ -94,7 +95,14 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'dest
 
 function StatusBadge({ status }: { status: string }) {
   const opt = STATUS_OPTIONS.find((s) => s.value === status);
-  return <Badge variant={STATUS_VARIANT[status] ?? 'secondary'}>{opt?.label ?? status}</Badge>;
+  return (
+    <Badge
+      variant={STATUS_VARIANT[status] ?? 'secondary'}
+      className="whitespace-nowrap px-2 py-0.5 text-[11px] leading-none"
+    >
+      {opt?.label ?? status}
+    </Badge>
+  );
 }
 
 function fmtDate(d?: string | null) {
@@ -113,6 +121,26 @@ function getOverdueDays(expectedReturn?: string | null, now = Date.now()) {
   if (overdueMs <= 0) return 0;
 
   return Math.max(1, Math.ceil(overdueMs / (1000 * 60 * 60 * 24)));
+}
+
+function fmtDateTime(d?: string | null) {
+  if (!d) return '—';
+  try {
+    return format(new Date(d), 'dd/MM/yyyy HH:mm');
+  } catch {
+    return d;
+  }
+}
+
+function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <div className="mt-1 text-sm leading-snug text-foreground">{value}</div>
+    </div>
+  );
 }
 
 // ── Create Borrow Dialog ───────────────────────────────────────────────────
@@ -696,6 +724,7 @@ export function BorrowPage() {
   const [cancelTarget, setCancelTarget] = useState<BorrowTransaction | null>(null);
   const [editTarget, setEditTarget] = useState<BorrowTransaction | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BorrowTransaction | null>(null);
+  const [detailTarget, setDetailTarget] = useState<BorrowTransaction | null>(null);
 
   const { data, isLoading } = useBorrows({ status: statusFilter, page, limit: LIMIT });
   const approve = useApproveBorrow();
@@ -705,11 +734,12 @@ export function BorrowPage() {
 
   const txs = data?.data ?? [];
   const meta = data?.meta;
+  const detailOverdueDays = detailTarget ? getOverdueDays(detailTarget.expectedReturn, now) : 0;
 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+      <div className="flex items-center justify-between border-b bg-white px-4 py-3">
         <h1 className="text-xl font-bold">ยืม / คืน</h1>
         <div className="flex items-center gap-2">
           {isManager && (
@@ -736,7 +766,7 @@ export function BorrowPage() {
       </div>
 
       {/* Filter */}
-      <div className="flex items-center gap-2 border-b bg-gray-50 px-6 py-3">
+      <div className="flex items-center gap-2 border-b bg-gray-50 px-4 py-2">
         <Select
           onValueChange={(v) => {
             setStatusFilter(v === 'ALL' ? undefined : v);
@@ -758,20 +788,20 @@ export function BorrowPage() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <Table>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <Table className="table-fixed">
           <TableHeader className="sticky top-0 bg-white">
             <TableRow>
-              <TableHead>อุปกรณ์</TableHead>
-              <TableHead>Site</TableHead>
-              <TableHead>ชื่อผู้ยืม</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>วันที่ยืม</TableHead>
-              <TableHead>วันที่คืน</TableHead>
-              <TableHead>สถานะ</TableHead>
-              <TableHead>ผู้อนุมัติ</TableHead>
-              <TableHead className="w-36 text-right">Actions</TableHead>
+              <TableHead className="w-[16%] px-2 py-2 text-[11px]">อุปกรณ์</TableHead>
+              <TableHead className="w-[8%] px-2 py-2 text-[11px]">Site</TableHead>
+              <TableHead className="w-[10%] px-2 py-2 text-[11px]">ชื่อผู้ยืม</TableHead>
+              <TableHead className="w-[12%] px-2 py-2 text-[11px]">Email</TableHead>
+              <TableHead className="w-[14%] px-2 py-2 text-[11px]">Project</TableHead>
+              <TableHead className="w-[9%] px-2 py-2 text-[11px]">วันที่ยืม</TableHead>
+              <TableHead className="w-[10%] px-2 py-2 text-[11px]">วันที่คืน</TableHead>
+              <TableHead className="w-[13%] px-2 py-2 text-[11px]">สถานะ</TableHead>
+              <TableHead className="w-[10%] px-2 py-2 text-[11px]">ผู้อนุมัติ</TableHead>
+              <TableHead className="w-[8%] px-2 py-2 text-right text-[11px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -805,41 +835,64 @@ export function BorrowPage() {
                 const displayEmail = tx.borrowerEmail || null;
 
                 return (
-                  <TableRow key={tx.id} className="group">
-                    <TableCell>
-                      <p className="font-mono text-xs font-medium">{tx.sparePart.modelCode}</p>
-                      <p className="max-w-[150px] truncate text-xs text-muted-foreground">
+                  <TableRow
+                    key={tx.id}
+                    className="group cursor-pointer"
+                    title="คลิกเพื่อดูรายละเอียด"
+                    onClick={() => setDetailTarget(tx)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setDetailTarget(tx);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                  >
+                    <TableCell className="px-2 py-2 align-top text-[11px]">
+                      <p className="font-mono text-[11px] font-medium leading-tight">
+                        {tx.sparePart.modelCode}
+                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-tight text-muted-foreground">
                         {tx.sparePart.productName}
                       </p>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-mono text-xs">
+                    <TableCell className="px-2 py-2 align-top text-[11px]">
+                      <Badge variant="outline" className="px-1.5 py-0.5 font-mono text-[11px]">
                         {tx.sparePart.site.code}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{displayName}</TableCell>
-                    <TableCell className="max-w-[160px] truncate text-xs text-muted-foreground">
+                    <TableCell className="px-2 py-2 align-top text-[11px] leading-tight">
+                      <span className="line-clamp-2 break-words">{displayName}</span>
+                    </TableCell>
+                    <TableCell className="px-2 py-2 align-top text-[11px] text-muted-foreground">
                       {displayEmail || '—'}
                     </TableCell>
-                    <TableCell className="max-w-[120px] truncate text-sm">
-                      {tx.project ?? '—'}
+                    <TableCell className="px-2 py-2 align-top text-[11px] leading-tight">
+                      <span className="line-clamp-2 break-words">{tx.project ?? '—'}</span>
                     </TableCell>
-                    <TableCell className="text-xs">{fmtDate(tx.dateStart)}</TableCell>
-                    <TableCell className="text-xs">{fmtDate(tx.expectedReturn)}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-2">
+                    <TableCell className="px-2 py-2 align-top text-[11px]">
+                      {fmtDate(tx.dateStart)}
+                    </TableCell>
+                    <TableCell className="px-2 py-2 align-top text-[11px]">
+                      {fmtDate(tx.expectedReturn)}
+                    </TableCell>
+                    <TableCell className="px-2 py-2 align-top">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <StatusBadge status={tx.status} />
                         {isOverdue && (
-                          <Badge variant="destructive">เกินกำหนด {overdueDays} วัน</Badge>
+                          <Badge variant="destructive" className="px-2 py-0.5 text-[11px]">
+                            ล่าช้า {overdueDays} วัน
+                          </Badge>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="px-2 py-2 align-top text-[11px] leading-tight">
                       {tx.approver ? (
                         <div>
-                          <p className="font-medium">{tx.approver.name}</p>
+                          <p className="line-clamp-2 font-medium">{tx.approver.name}</p>
                           {tx.approverRemark && (
-                            <p className="max-w-[140px] truncate text-xs text-muted-foreground">
+                            <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
                               {tx.approverRemark}
                             </p>
                           )}
@@ -848,8 +901,20 @@ export function BorrowPage() {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-1">
+                    <TableCell className="px-2 py-2 align-top">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-slate-600 hover:text-slate-900"
+                          title="ดูรายละเอียด"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailTarget(tx);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         {canApproveReject && (
                           <>
                             <Button
@@ -857,7 +922,10 @@ export function BorrowPage() {
                               variant="ghost"
                               className="h-7 w-7 text-green-600 hover:text-green-700"
                               title="อนุมัติ"
-                              onClick={() => setApproveTarget(tx)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setApproveTarget(tx);
+                              }}
                             >
                               <CheckCircle className="h-4 w-4" />
                             </Button>
@@ -866,7 +934,10 @@ export function BorrowPage() {
                               variant="ghost"
                               className="h-7 w-7 text-destructive hover:text-destructive"
                               title="ปฏิเสธ"
-                              onClick={() => setRejectTarget(tx)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRejectTarget(tx);
+                              }}
                             >
                               <XCircle className="h-4 w-4" />
                             </Button>
@@ -878,7 +949,10 @@ export function BorrowPage() {
                             variant="ghost"
                             className="h-7 w-7 text-blue-600 hover:text-blue-700"
                             title="คืนของ"
-                            onClick={() => setReturnTarget(tx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReturnTarget(tx);
+                            }}
                           >
                             <RotateCcw className="h-4 w-4" />
                           </Button>
@@ -889,7 +963,10 @@ export function BorrowPage() {
                             variant="ghost"
                             className="h-7 w-7 text-muted-foreground hover:text-destructive"
                             title="ยกเลิก"
-                            onClick={() => setCancelTarget(tx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCancelTarget(tx);
+                            }}
                           >
                             <Ban className="h-4 w-4" />
                           </Button>
@@ -900,7 +977,10 @@ export function BorrowPage() {
                             variant="ghost"
                             className="h-7 w-7 text-blue-500 hover:text-blue-700"
                             title="แก้ไข"
-                            onClick={() => setEditTarget(tx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditTarget(tx);
+                            }}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -911,7 +991,10 @@ export function BorrowPage() {
                             variant="ghost"
                             className="h-7 w-7 text-destructive hover:text-destructive"
                             title="ลบ"
-                            onClick={() => setDeleteTarget(tx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(tx);
+                            }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -968,6 +1051,101 @@ export function BorrowPage() {
         onOpenChange={setImportOpen}
         onSuccess={() => qc.invalidateQueries({ queryKey: BORROW_KEY })}
       />
+
+      {/* Detail dialog */}
+      <Dialog open={!!detailTarget} onOpenChange={(v) => !v && setDetailTarget(null)}>
+        <DialogContent className="max-h-[85vh] sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4" /> รายละเอียดการยืม
+            </DialogTitle>
+            {detailTarget && (
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="px-2 py-0.5 font-mono text-[11px]">
+                  {detailTarget.sparePart.modelCode}
+                </Badge>
+                <Badge variant="secondary" className="px-2 py-0.5 text-[11px]">
+                  {detailTarget.sparePart.site.code}
+                </Badge>
+                {detailTarget.status === 'APPROVED' && detailOverdueDays > 0 && (
+                  <Badge variant="destructive" className="px-2 py-0.5 text-[11px]">
+                    ล่าช้า {detailOverdueDays} วัน
+                  </Badge>
+                )}
+              </div>
+            )}
+          </DialogHeader>
+
+          {detailTarget && (
+            <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <DetailField
+                  label="อุปกรณ์"
+                  value={
+                    <>
+                      <p className="font-medium text-foreground">
+                        {detailTarget.sparePart.modelCode}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {detailTarget.sparePart.productName}
+                      </p>
+                    </>
+                  }
+                />
+                <DetailField
+                  label="สถานะ"
+                  value={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={detailTarget.status} />
+                      {detailTarget.status === 'APPROVED' && detailOverdueDays > 0 && (
+                        <Badge variant="destructive" className="px-2 py-0.5 text-[11px]">
+                          ล่าช้า {detailOverdueDays} วัน
+                        </Badge>
+                      )}
+                    </div>
+                  }
+                />
+                <DetailField label="Site" value={detailTarget.sparePart.site.code} />
+                <DetailField
+                  label="ผู้ยืม"
+                  value={detailTarget.borrowerName ?? detailTarget.borrower.name}
+                />
+                <DetailField
+                  label="Email"
+                  value={detailTarget.borrowerEmail || detailTarget.borrower.email || '—'}
+                />
+                <DetailField label="Project" value={detailTarget.project ?? '—'} />
+                <DetailField label="วันที่เริ่มยืม" value={fmtDateTime(detailTarget.dateStart)} />
+                <DetailField
+                  label="วันที่คาดว่าจะคืน"
+                  value={fmtDateTime(detailTarget.expectedReturn)}
+                />
+                <DetailField label="วันที่คืนจริง" value={fmtDateTime(detailTarget.actualReturn)} />
+                <DetailField label="ผู้อนุมัติ" value={detailTarget.approver?.name ?? '—'} />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <DetailField
+                  label="หมายเหตุผู้ยืม"
+                  value={
+                    <p className="whitespace-pre-wrap break-words text-sm leading-snug text-foreground">
+                      {detailTarget.borrowerRemark ?? '—'}
+                    </p>
+                  }
+                />
+                <DetailField
+                  label="หมายเหตุผู้อนุมัติ"
+                  value={
+                    <p className="whitespace-pre-wrap break-words text-sm leading-snug text-foreground">
+                      {detailTarget.approverRemark ?? '—'}
+                    </p>
+                  }
+                />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Approve dialog */}
       <RemarkDialog
