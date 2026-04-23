@@ -899,7 +899,7 @@ export function BorrowPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex justify-end gap-1">
+                      <div className="ml-auto grid w-fit grid-cols-3 gap-1">
                         <Button
                           size="icon"
                           variant="ghost"
