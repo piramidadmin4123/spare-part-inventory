@@ -156,8 +156,6 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
   const createPart = useCreateSparePart();
   const updatePart = useUpdateSparePart();
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(editing?.imageUrl ?? null);
-  const [imageTouched, setImageTouched] = useState(false);
 
   const schema = editing ? updateSparePartSchema : createSparePartSchema;
   const {
@@ -185,14 +183,14 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
           status: editing.status as StatusValue,
           location: editing.location ?? '',
           remark: editing.remark ?? '',
+          imageUrl: editing.imageUrl ?? null,
         }
-      : { quantity: 1, minStock: 1, status: 'IN_STOCK' },
+      : { quantity: 1, minStock: 1, status: 'IN_STOCK', imageUrl: null },
   });
+  const imageUrl = watch('imageUrl');
 
   useEffect(() => {
     if (open) {
-      setImageUrl(editing?.imageUrl ?? null);
-      setImageTouched(false);
       reset(
         editing
           ? {
@@ -210,12 +208,10 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
               status: editing.status as StatusValue,
               location: editing.location ?? '',
               remark: editing.remark ?? '',
+              imageUrl: editing.imageUrl ?? null,
             }
-          : { quantity: 1, minStock: 1, status: 'IN_STOCK' }
+          : { quantity: 1, minStock: 1, status: 'IN_STOCK', imageUrl: null }
       );
-    } else {
-      setImageUrl(null);
-      setImageTouched(false);
     }
   }, [open, editing]);
 
@@ -238,14 +234,12 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
       reader.readAsDataURL(file);
     });
 
-    setImageUrl(dataUrl);
-    setImageTouched(true);
+    setValue('imageUrl', dataUrl, { shouldDirty: true, shouldValidate: true });
     e.target.value = '';
   }
 
   function clearImage() {
-    setImageUrl(null);
-    setImageTouched(true);
+    setValue('imageUrl', null, { shouldDirty: true, shouldValidate: true });
     if (imageInputRef.current) {
       imageInputRef.current.value = '';
     }
@@ -258,14 +252,12 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
           ([, v]) => v !== undefined && v !== '' && !(typeof v === 'number' && isNaN(v))
         )
       ) as UpdateSparePartInput;
-      const payload = (imageTouched ? { ...clean, imageUrl } : clean) as UpdateSparePartInput;
-      updatePart.mutate({ id: editing.id, data: payload }, { onSuccess });
+      updatePart.mutate({ id: editing.id, data: clean }, { onSuccess });
     } else {
       const clean = Object.fromEntries(
         Object.entries(data).map(([k, v]) => [k, v === '' ? null : v])
       ) as CreateSparePartInput;
-      const payload = (imageTouched ? { ...clean, imageUrl } : clean) as CreateSparePartInput;
-      createPart.mutate(payload, { onSuccess });
+      createPart.mutate(clean, { onSuccess });
     }
   }
 
