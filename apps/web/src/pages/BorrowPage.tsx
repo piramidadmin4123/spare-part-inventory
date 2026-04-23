@@ -1093,6 +1093,23 @@ export function BorrowPage() {
 
           {detailTarget && (
             <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
+              <div className="overflow-hidden rounded-xl border bg-muted/20">
+                <div className="border-b px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  รูปภาพอุปกรณ์
+                </div>
+                {detailTarget.sparePart.imageUrl ? (
+                  <img
+                    src={detailTarget.sparePart.imageUrl}
+                    alt={detailTarget.sparePart.productName}
+                    className="h-56 w-full bg-background object-contain p-3"
+                  />
+                ) : (
+                  <div className="flex h-56 items-center justify-center px-3 text-sm text-muted-foreground">
+                    ไม่มีรูปภาพสำหรับอุปกรณ์นี้
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <DetailField
                   label="อุปกรณ์"

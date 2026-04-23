@@ -80,7 +80,7 @@ export interface SparePart {
 }
 export interface BorrowTransaction {
   id: string;
-  sparePart: Pick<SparePart, 'id' | 'modelCode' | 'productName'> & {
+  sparePart: Pick<SparePart, 'id' | 'modelCode' | 'productName' | 'imageUrl'> & {
     site: Pick<Site, 'id' | 'code' | 'name'>;
     equipmentType: Pick<EquipmentType, 'id' | 'code'>;
     brand: Pick<Brand, 'id' | 'name'>;
