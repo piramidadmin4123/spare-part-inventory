@@ -140,7 +140,7 @@ borrowRouter.patch('/:id', async (req, res, next) => {
       throw new AppError(409, 'CONFLICT', 'Only PENDING requests can be edited');
 
     const user = req.user!;
-    if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
+    if (tx.borrowerId !== user.id)
       throw new AppError(403, 'FORBIDDEN', 'You can only edit your own requests');
 
     const parsed = editBorrowSchema.safeParse(req.body);
@@ -187,18 +187,14 @@ borrowRouter.patch('/:id', async (req, res, next) => {
   }
 });
 
-// DELETE /api/borrow/:id — PENDING only
-borrowRouter.delete('/:id', async (req, res, next) => {
+// DELETE /api/borrow/:id — ADMIN, MANAGER only
+borrowRouter.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
   try {
     const id = req.params.id as string;
     const tx = await prisma.borrowTransaction.findUnique({ where: { id } });
     if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
     if (tx.status !== 'PENDING')
       throw new AppError(409, 'CONFLICT', 'Only PENDING requests can be deleted');
-
-    const user = req.user!;
-    if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
-      throw new AppError(403, 'FORBIDDEN', 'You can only delete your own requests');
 
     await prisma.borrowTransaction.delete({ where: { id } });
     res.status(204).end();

@@ -858,10 +858,8 @@ export function BorrowPage() {
                   tx.status === 'APPROVED' && (isManager || tx.borrower.id === user?.id);
                 const canCancel =
                   tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
-                const canEdit =
-                  tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
-                const canDelete =
-                  tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
+                const canEdit = tx.status === 'PENDING' && tx.borrower.id === user?.id;
+                const canDelete = tx.status === 'PENDING' && isManager;
                 const canBorrowAgain = user?.role !== 'VIEWER' && tx.status === 'REJECTED';
                 const overdueDays = getOverdueDays(tx.expectedReturn, now);
                 const isOverdue = tx.status === 'APPROVED' && overdueDays > 0;
