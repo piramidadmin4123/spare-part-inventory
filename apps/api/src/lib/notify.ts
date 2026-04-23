@@ -234,13 +234,23 @@ export async function notifyBorrowRejected(
   ]);
 }
 
-export async function notifyBorrowReturned(info: BorrowInfo & { approverName?: string }) {
+export async function notifyBorrowReturned(
+  info: BorrowInfo & { approverName?: string; overdueDays?: number }
+) {
   const adminEmails = await getAdminEmails();
   const facts = [
     { name: 'อุปกรณ์', value: `${info.modelCode} — ${info.productName}` },
     { name: 'Site', value: info.siteCode },
     { name: 'ผู้คืน', value: info.borrowerName },
+    ...(info.overdueDays && info.overdueDays > 0
+      ? [{ name: 'สถานะการคืน', value: `ล่าช้า ${info.overdueDays} วัน` }]
+      : []),
   ];
+
+  const subject =
+    info.overdueDays && info.overdueDays > 0
+      ? `[คืนแล้ว | ล่าช้า ${info.overdueDays} วัน] ${info.modelCode} — ${info.borrowerName}`
+      : `[คืนแล้ว] ${info.modelCode} — ${info.borrowerName}`;
 
   await Promise.all([
     sendTeams({
@@ -252,9 +262,12 @@ export async function notifyBorrowReturned(info: BorrowInfo & { approverName?: s
     adminEmails.length > 0 &&
       sendEmail({
         to: adminEmails,
-        subject: `[คืนแล้ว] ${info.modelCode} — ${info.borrowerName}`,
+        subject,
         title: 'อุปกรณ์ถูกคืนเข้าระบบแล้ว',
         rows: facts.map((f) => ({ label: f.name, value: f.value })),
+        ...(info.overdueDays && info.overdueDays > 0
+          ? { bodyText: `รายการนี้ถูกคืนล่าช้า <strong>${info.overdueDays}</strong> วัน` }
+          : {}),
       }),
   ]);
 }

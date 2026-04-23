@@ -360,6 +360,16 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
       ]);
     }
 
+    const overdueDays =
+      tx.expectedReturn && actualReturn > tx.expectedReturn
+        ? Math.max(
+            1,
+            Math.ceil(
+              (actualReturn.getTime() - tx.expectedReturn.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          )
+        : 0;
+
     // only borrower or manager/admin can return
     const user = req.user!;
     if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
@@ -391,6 +401,7 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
       borrowerName: updated.borrowerName ?? updated.borrower.name,
       borrowerEmail: updated.borrowerEmail ?? updated.borrower.email,
       project: updated.project,
+      overdueDays,
     }).catch(() => {});
   } catch (err) {
     next(err);
