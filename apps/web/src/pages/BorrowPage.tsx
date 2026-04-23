@@ -653,12 +653,21 @@ export function BorrowPage() {
   const { user } = useAuthStore();
   const isManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const qc = useQueryClient();
+  const [now, setNow] = useState(() => Date.now());
 
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 60_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function handleExport() {
     setExporting(true);
@@ -780,6 +789,10 @@ export function BorrowPage() {
                   tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
                 const canDelete =
                   tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
+                const isOverdue =
+                  tx.status === 'APPROVED' && tx.expectedReturn
+                    ? new Date(tx.expectedReturn).getTime() < now
+                    : false;
 
                 const displayName = tx.borrowerName ?? tx.borrower.name;
                 const displayEmail = tx.borrowerEmail || null;
@@ -807,7 +820,10 @@ export function BorrowPage() {
                     <TableCell className="text-xs">{fmtDate(tx.dateStart)}</TableCell>
                     <TableCell className="text-xs">{fmtDate(tx.expectedReturn)}</TableCell>
                     <TableCell>
-                      <StatusBadge status={tx.status} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={tx.status} />
+                        {isOverdue && <Badge variant="destructive">เกินกำหนด</Badge>}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm">
                       {tx.approver ? (
