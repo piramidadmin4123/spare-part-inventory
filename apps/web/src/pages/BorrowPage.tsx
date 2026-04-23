@@ -148,9 +148,11 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
 function CreateBorrowDialog({
   open,
   onOpenChange,
+  initialSparePartId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  initialSparePartId?: string | null;
 }) {
   const { user } = useAuthStore();
   const createBorrow = useCreateBorrow();
@@ -171,6 +173,7 @@ function CreateBorrowDialog({
     handleSubmit,
     setValue,
     watch,
+    resetField,
     reset,
     formState: { errors },
   } = useForm<BorrowRequestInput>({
@@ -180,7 +183,19 @@ function CreateBorrowDialog({
       borrowerEmail: user?.email ?? '',
     },
   });
+  const selectedSparePartId = watch('sparePartId');
   const dateStartValue = watch('dateStart');
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (initialSparePartId) {
+      setValue('sparePartId', initialSparePartId, { shouldDirty: true, shouldValidate: true });
+      return;
+    }
+
+    resetField('sparePartId');
+  }, [open, initialSparePartId, resetField, setValue]);
 
   function onSubmit(data: BorrowRequestInput) {
     createBorrow.mutate(data, {
@@ -206,7 +221,10 @@ function CreateBorrowDialog({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1">
             <Label>Spare Part *</Label>
-            <Select onValueChange={(v) => setValue('sparePartId', v)}>
+            <Select
+              value={selectedSparePartId ?? ''}
+              onValueChange={(v) => setValue('sparePartId', v, { shouldDirty: true })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="เลือกอุปกรณ์ที่ต้องการยืม" />
               </SelectTrigger>
@@ -704,6 +722,7 @@ export function BorrowPage() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [borrowAgainSparePartId, setBorrowAgainSparePartId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -767,7 +786,13 @@ export function BorrowPage() {
             </>
           )}
           {user?.role !== 'VIEWER' && (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setBorrowAgainSparePartId(null);
+                setCreateOpen(true);
+              }}
+            >
               <Plus className="mr-1 h-4 w-4" /> ขอยืม
             </Button>
           )}
@@ -837,6 +862,7 @@ export function BorrowPage() {
                   tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
                 const canDelete =
                   tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
+                const canBorrowAgain = user?.role !== 'VIEWER' && tx.status === 'REJECTED';
                 const overdueDays = getOverdueDays(tx.expectedReturn, now);
                 const isOverdue = tx.status === 'APPROVED' && overdueDays > 0;
 
@@ -919,6 +945,21 @@ export function BorrowPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
+                        {canBorrowAgain && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-blue-600 hover:text-blue-700"
+                            title="ขอยืมอีกครั้ง"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBorrowAgainSparePartId(tx.sparePart.id);
+                              setCreateOpen(true);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        )}
                         {canApproveReject && (
                           <>
                             <Button
@@ -1132,7 +1173,14 @@ export function BorrowPage() {
                     </div>
                   }
                 />
-                <DetailField label="Site" value={detailTarget.sparePart.site.code} />
+                <CreateBorrowDialog
+                  open={createOpen}
+                  onOpenChange={(v) => {
+                    setCreateOpen(v);
+                    if (!v) setBorrowAgainSparePartId(null);
+                  }}
+                  initialSparePartId={borrowAgainSparePartId}
+                />
                 <DetailField
                   label="ผู้ยืม"
                   value={detailTarget.borrowerName ?? detailTarget.borrower.name}
