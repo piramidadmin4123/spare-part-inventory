@@ -5,10 +5,22 @@ import type { CreateSparePartInput, UpdateSparePartInput } from '@spare-part/sha
 
 export const INVENTORY_KEY = ['spare-parts'] as const;
 
-export function useSpareParts(filters: SparePartFilters = {}) {
+type SparePartsQueryOptions = {
+  enabled?: boolean;
+  staleTime?: number;
+  refetchOnMount?: boolean | 'always';
+  refetchOnWindowFocus?: boolean | 'always';
+  refetchOnReconnect?: boolean | 'always';
+};
+
+export function useSpareParts(
+  filters: SparePartFilters = {},
+  options: SparePartsQueryOptions = {}
+) {
   return useQuery({
     queryKey: [...INVENTORY_KEY, filters],
     queryFn: () => inventoryApi.list(filters).then((r) => r.data),
+    ...options,
   });
 }
 

@@ -155,11 +155,17 @@ function CreateBorrowDialog({
 }) {
   const { user } = useAuthStore();
   const createBorrow = useCreateBorrow();
-  const { data: partsData, refetch: refetchParts } = useSpareParts({
-    status: 'IN_STOCK',
-    limit: 100,
-  });
-  const parts = partsData?.data ?? [];
+  const { data: partsData } = useSpareParts(
+    { limit: 100 },
+    {
+      enabled: open,
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: 'always',
+      refetchOnReconnect: 'always',
+    }
+  );
+  const parts = (partsData?.data ?? []).filter((part) => part.quantity > 0);
 
   const {
     register,
@@ -176,12 +182,6 @@ function CreateBorrowDialog({
     },
   });
   const dateStartValue = watch('dateStart');
-
-  useEffect(() => {
-    if (open) {
-      refetchParts();
-    }
-  }, [open, refetchParts]);
 
   function onSubmit(data: BorrowRequestInput) {
     createBorrow.mutate(data, {
