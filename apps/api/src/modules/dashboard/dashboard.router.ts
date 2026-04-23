@@ -16,6 +16,7 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
       byStatus,
       pendingBorrows,
       borrowByStatus,
+      overdueItems,
       overdueBorrowers,
       allNonRetiredParts,
     ] = await Promise.all([
@@ -23,6 +24,13 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
       prisma.sparePart.groupBy({ by: ['status'], _count: { id: true } }),
       prisma.borrowTransaction.count({ where: { status: 'PENDING' } }),
       prisma.borrowTransaction.groupBy({ by: ['status'], _count: { id: true } }),
+      prisma.borrowTransaction.count({
+        where: {
+          status: 'APPROVED',
+          expectedReturn: { lt: now },
+          actualReturn: null,
+        },
+      }),
       prisma.borrowTransaction.groupBy({
         by: ['borrowerId'],
         where: {
@@ -43,6 +51,7 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
     res.json({
       totalParts,
       pendingBorrows,
+      overdueItems,
       overdueBorrowers: overdueBorrowers.length,
       lowStock,
       byStatus: byStatus.map((s) => ({ status: s.status, count: s._count.id })),

@@ -106,6 +106,15 @@ function fmtDate(d?: string | null) {
   }
 }
 
+function getOverdueDays(expectedReturn?: string | null, now = Date.now()) {
+  if (!expectedReturn) return 0;
+
+  const overdueMs = now - new Date(expectedReturn).getTime();
+  if (overdueMs <= 0) return 0;
+
+  return Math.max(1, Math.ceil(overdueMs / (1000 * 60 * 60 * 24)));
+}
+
 // ── Create Borrow Dialog ───────────────────────────────────────────────────
 
 function CreateBorrowDialog({
@@ -789,10 +798,8 @@ export function BorrowPage() {
                   tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
                 const canDelete =
                   tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
-                const isOverdue =
-                  tx.status === 'APPROVED' && tx.expectedReturn
-                    ? new Date(tx.expectedReturn).getTime() < now
-                    : false;
+                const overdueDays = getOverdueDays(tx.expectedReturn, now);
+                const isOverdue = tx.status === 'APPROVED' && overdueDays > 0;
 
                 const displayName = tx.borrowerName ?? tx.borrower.name;
                 const displayEmail = tx.borrowerEmail || null;
@@ -822,7 +829,9 @@ export function BorrowPage() {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={tx.status} />
-                        {isOverdue && <Badge variant="destructive">เกินกำหนด</Badge>}
+                        {isOverdue && (
+                          <Badge variant="destructive">เกินกำหนด {overdueDays} วัน</Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">

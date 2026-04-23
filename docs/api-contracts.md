@@ -248,6 +248,7 @@
   "needItems": 60,
   "activeBorrows": 33,
   "pendingApprovals": 5,
+  "overdueItems": 8,
   "overdueBorrowers": 4,
   "lowStockCount": 3,
 

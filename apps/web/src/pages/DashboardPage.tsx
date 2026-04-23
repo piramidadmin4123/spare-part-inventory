@@ -22,6 +22,7 @@ import { apiClient } from '@/lib/api-client';
 interface Summary {
   totalParts: number;
   pendingBorrows: number;
+  overdueItems: number;
   overdueBorrowers: number;
   lowStock: number;
   byStatus: { status: string; count: number }[];
@@ -214,9 +215,9 @@ export function DashboardPage() {
           />
           <KpiCard
             icon={AlertTriangle}
-            label="คืนล่าช้า"
-            value={summary?.overdueBorrowers ?? '—'}
-            sub="จำนวนคน"
+            label="อุปกรณ์เกินกำหนด"
+            value={summary?.overdueItems ?? '—'}
+            sub={summary ? `${summary.overdueBorrowers} คน` : undefined}
             color="bg-rose-500"
           />
         </div>
