@@ -156,7 +156,7 @@ function CreateBorrowDialog({
   const { user } = useAuthStore();
   const createBorrow = useCreateBorrow();
   const { data: partsData } = useSpareParts(
-    { limit: 100 },
+    { status: 'IN_STOCK', limit: 100 },
     {
       enabled: open,
       staleTime: 0,
@@ -165,7 +165,7 @@ function CreateBorrowDialog({
       refetchOnReconnect: 'always',
     }
   );
-  const parts = (partsData?.data ?? []).filter((part) => part.quantity > 0);
+  const parts = partsData?.data ?? [];
 
   const {
     register,
