@@ -155,7 +155,10 @@ function CreateBorrowDialog({
 }) {
   const { user } = useAuthStore();
   const createBorrow = useCreateBorrow();
-  const { data: partsData } = useSpareParts({ status: 'IN_STOCK', limit: 100 });
+  const { data: partsData, refetch: refetchParts } = useSpareParts({
+    status: 'IN_STOCK',
+    limit: 100,
+  });
   const parts = partsData?.data ?? [];
 
   const {
@@ -173,6 +176,12 @@ function CreateBorrowDialog({
     },
   });
   const dateStartValue = watch('dateStart');
+
+  useEffect(() => {
+    if (open) {
+      refetchParts();
+    }
+  }, [open, refetchParts]);
 
   function onSubmit(data: BorrowRequestInput) {
     createBorrow.mutate(data, {
