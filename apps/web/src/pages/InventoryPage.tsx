@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -155,6 +155,9 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
   const { data: brands = [] } = useBrands();
   const createPart = useCreateSparePart();
   const updatePart = useUpdateSparePart();
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(editing?.imageUrl ?? null);
+  const [imageTouched, setImageTouched] = useState(false);
 
   const schema = editing ? updateSparePartSchema : createSparePartSchema;
   const {
@@ -188,6 +191,8 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
 
   useEffect(() => {
     if (open) {
+      setImageUrl(editing?.imageUrl ?? null);
+      setImageTouched(false);
       reset(
         editing
           ? {
@@ -208,10 +213,43 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
             }
           : { quantity: 1, minStock: 1, status: 'IN_STOCK' }
       );
+    } else {
+      setImageUrl(null);
+      setImageTouched(false);
     }
   }, [open, editing]);
 
   const isPending = createPart.isPending || updatePart.isPending;
+
+  async function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error('Unable to read image'));
+      };
+      reader.onerror = () => reject(reader.error ?? new Error('Unable to read image'));
+      reader.readAsDataURL(file);
+    });
+
+    setImageUrl(dataUrl);
+    setImageTouched(true);
+    e.target.value = '';
+  }
+
+  function clearImage() {
+    setImageUrl(null);
+    setImageTouched(true);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
+    }
+  }
 
   function onSubmit(data: CreateSparePartInput | UpdateSparePartInput) {
     if (editing) {
@@ -220,12 +258,14 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
           ([, v]) => v !== undefined && v !== '' && !(typeof v === 'number' && isNaN(v))
         )
       ) as UpdateSparePartInput;
-      updatePart.mutate({ id: editing.id, data: clean }, { onSuccess });
+      const payload = (imageTouched ? { ...clean, imageUrl } : clean) as UpdateSparePartInput;
+      updatePart.mutate({ id: editing.id, data: payload }, { onSuccess });
     } else {
       const clean = Object.fromEntries(
         Object.entries(data).map(([k, v]) => [k, v === '' ? null : v])
       ) as CreateSparePartInput;
-      createPart.mutate(clean, { onSuccess });
+      const payload = (imageTouched ? { ...clean, imageUrl } : clean) as CreateSparePartInput;
+      createPart.mutate(payload, { onSuccess });
     }
   }
 
@@ -330,6 +370,51 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
             {errors.productName && (
               <p className="text-xs text-destructive">{errors.productName.message}</p>
             )}
+          </div>
+
+          {/* Image */}
+          <div className="space-y-2">
+            <Label>รูปภาพ</Label>
+            <div className="flex flex-col gap-3 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-center">
+              <div className="flex h-24 w-32 items-center justify-center overflow-hidden rounded border bg-white">
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={watch('productName') || 'Spare Part image'}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xs text-muted-foreground">ไม่มีรูปภาพ</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => imageInputRef.current?.click()}
+                  >
+                    <Upload className="mr-2 h-4 w-4" /> เลือกรูป
+                  </Button>
+                  {imageUrl && (
+                    <Button type="button" variant="ghost" size="sm" onClick={clearImage}>
+                      ลบรูป
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  รองรับไฟล์รูปภาพทั่วไป สามารถอัปโหลดได้ 1 รูปต่อรายการ
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Serial / MAC */}
