@@ -739,7 +739,7 @@ export function BorrowPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b bg-white px-4 py-3">
+      <div className="flex items-center justify-between border-b bg-white px-6 py-4">
         <h1 className="text-xl font-bold">ยืม / คืน</h1>
         <div className="flex items-center gap-2">
           {isManager && (
@@ -766,7 +766,7 @@ export function BorrowPage() {
       </div>
 
       {/* Filter */}
-      <div className="flex items-center gap-2 border-b bg-gray-50 px-4 py-2">
+      <div className="flex items-center gap-2 border-b bg-gray-50 px-6 py-3">
         <Select
           onValueChange={(v) => {
             setStatusFilter(v === 'ALL' ? undefined : v);
@@ -788,20 +788,20 @@ export function BorrowPage() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <Table className="table-fixed">
+      <div className="flex-1 overflow-auto">
+        <Table>
           <TableHeader className="sticky top-0 bg-white">
             <TableRow>
-              <TableHead className="w-[16%] px-2 py-2 text-[11px]">อุปกรณ์</TableHead>
-              <TableHead className="w-[8%] px-2 py-2 text-[11px]">Site</TableHead>
-              <TableHead className="w-[10%] px-2 py-2 text-[11px]">ชื่อผู้ยืม</TableHead>
-              <TableHead className="w-[12%] px-2 py-2 text-[11px]">Email</TableHead>
-              <TableHead className="w-[14%] px-2 py-2 text-[11px]">Project</TableHead>
-              <TableHead className="w-[9%] px-2 py-2 text-[11px]">วันที่ยืม</TableHead>
-              <TableHead className="w-[10%] px-2 py-2 text-[11px]">วันที่คืน</TableHead>
-              <TableHead className="w-[13%] px-2 py-2 text-[11px]">สถานะ</TableHead>
-              <TableHead className="w-[10%] px-2 py-2 text-[11px]">ผู้อนุมัติ</TableHead>
-              <TableHead className="w-[8%] px-2 py-2 text-right text-[11px]">Actions</TableHead>
+              <TableHead>อุปกรณ์</TableHead>
+              <TableHead>Site</TableHead>
+              <TableHead>ชื่อผู้ยืม</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Project</TableHead>
+              <TableHead>วันที่ยืม</TableHead>
+              <TableHead>วันที่คืน</TableHead>
+              <TableHead>สถานะ</TableHead>
+              <TableHead>ผู้อนุมัติ</TableHead>
+              <TableHead className="w-36 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -849,50 +849,38 @@ export function BorrowPage() {
                     tabIndex={0}
                     role="button"
                   >
-                    <TableCell className="px-2 py-2 align-top text-[11px]">
-                      <p className="font-mono text-[11px] font-medium leading-tight">
-                        {tx.sparePart.modelCode}
-                      </p>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-tight text-muted-foreground">
+                    <TableCell>
+                      <p className="font-mono text-xs font-medium">{tx.sparePart.modelCode}</p>
+                      <p className="max-w-[150px] truncate text-xs text-muted-foreground">
                         {tx.sparePart.productName}
                       </p>
                     </TableCell>
-                    <TableCell className="px-2 py-2 align-top text-[11px]">
-                      <Badge variant="outline" className="px-1.5 py-0.5 font-mono text-[11px]">
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono text-xs">
                         {tx.sparePart.site.code}
                       </Badge>
                     </TableCell>
-                    <TableCell className="px-2 py-2 align-top text-[11px] leading-tight">
-                      <span className="line-clamp-2 break-words">{displayName}</span>
-                    </TableCell>
-                    <TableCell className="px-2 py-2 align-top text-[11px] text-muted-foreground">
+                    <TableCell className="text-sm">{displayName}</TableCell>
+                    <TableCell className="max-w-[160px] truncate text-xs text-muted-foreground">
                       {displayEmail || '—'}
                     </TableCell>
-                    <TableCell className="px-2 py-2 align-top text-[11px] leading-tight">
-                      <span className="line-clamp-2 break-words">{tx.project ?? '—'}</span>
+                    <TableCell className="max-w-[120px] truncate text-sm">
+                      {tx.project ?? '—'}
                     </TableCell>
-                    <TableCell className="px-2 py-2 align-top text-[11px]">
-                      {fmtDate(tx.dateStart)}
-                    </TableCell>
-                    <TableCell className="px-2 py-2 align-top text-[11px]">
-                      {fmtDate(tx.expectedReturn)}
-                    </TableCell>
-                    <TableCell className="px-2 py-2 align-top">
-                      <div className="flex flex-wrap items-center gap-1.5">
+                    <TableCell className="text-xs">{fmtDate(tx.dateStart)}</TableCell>
+                    <TableCell className="text-xs">{fmtDate(tx.expectedReturn)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={tx.status} />
-                        {isOverdue && (
-                          <Badge variant="destructive" className="px-2 py-0.5 text-[11px]">
-                            ล่าช้า {overdueDays} วัน
-                          </Badge>
-                        )}
+                        {isOverdue && <Badge variant="destructive">ล่าช้า {overdueDays} วัน</Badge>}
                       </div>
                     </TableCell>
-                    <TableCell className="px-2 py-2 align-top text-[11px] leading-tight">
+                    <TableCell className="text-sm">
                       {tx.approver ? (
                         <div>
-                          <p className="line-clamp-2 font-medium">{tx.approver.name}</p>
+                          <p className="font-medium">{tx.approver.name}</p>
                           {tx.approverRemark && (
-                            <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+                            <p className="max-w-[140px] truncate text-xs text-muted-foreground">
                               {tx.approverRemark}
                             </p>
                           )}
@@ -901,8 +889,8 @@ export function BorrowPage() {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="px-2 py-2 align-top">
-                      <div className="flex flex-wrap justify-end gap-1">
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
                         <Button
                           size="icon"
                           variant="ghost"
