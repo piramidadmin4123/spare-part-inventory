@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Loader2,
+  Eye,
   Pencil,
   Trash2,
   Plus,
@@ -91,6 +92,52 @@ function StatusBadge({ status }: { status: string }) {
     DECOMMISSIONED: 'secondary',
   };
   return <Badge variant={variantMap[status] ?? 'secondary'}>{cfg?.label ?? status}</Badge>;
+}
+
+function SparePartThumbnail({
+  imageUrl,
+  productName,
+  onClick,
+}: {
+  imageUrl?: string | null;
+  productName: string;
+  onClick?: () => void;
+}) {
+  if (!imageUrl) {
+    return (
+      <div className="flex h-12 w-16 items-center justify-center rounded border bg-muted/30 text-[11px] text-muted-foreground">
+        —
+      </div>
+    );
+  }
+
+  const content = (
+    <img
+      src={imageUrl}
+      alt={productName}
+      className="h-12 w-16 rounded border bg-white object-contain"
+      loading="lazy"
+    />
+  );
+
+  if (!onClick) return content;
+
+  return (
+    <button type="button" onClick={onClick} className="focus:outline-none" title="ดูรายละเอียด">
+      {content}
+    </button>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border bg-muted/20 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <div className="mt-1 text-sm text-foreground">{value}</div>
+    </div>
+  );
 }
 
 // ── Spare Part Form (Create / Edit) ───────────────────────────────────────
@@ -558,6 +605,7 @@ export function InventoryPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<SparePart | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SparePart | null>(null);
+  const [detailTarget, setDetailTarget] = useState<SparePart | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -604,6 +652,10 @@ export function InventoryPage() {
   function openEdit(part: SparePart) {
     setEditing(part);
     setSheetOpen(true);
+  }
+
+  function openDetail(part: SparePart) {
+    setDetailTarget(part);
   }
 
   return (
@@ -709,6 +761,7 @@ export function InventoryPage() {
           <TableHeader className="sticky top-0 bg-white">
             <TableRow>
               <TableHead className="w-10 text-center">No.</TableHead>
+              <TableHead className="w-20 text-center">Image</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Brand</TableHead>
               <TableHead>Material Code</TableHead>
@@ -724,13 +777,13 @@ export function InventoryPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={11} className="py-16 text-center">
+                <TableCell colSpan={12} className="py-16 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : parts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="py-16 text-center text-muted-foreground">
+                <TableCell colSpan={12} className="py-16 text-center text-muted-foreground">
                   ไม่พบข้อมูล
                 </TableCell>
               </TableRow>
@@ -742,6 +795,13 @@ export function InventoryPage() {
                   <TableRow key={p.id} className="group">
                     <TableCell className="text-center text-xs text-muted-foreground">
                       {rowNo}
+                    </TableCell>
+                    <TableCell className="px-2 text-center">
+                      <SparePartThumbnail
+                        imageUrl={p.imageUrl}
+                        productName={p.productName}
+                        onClick={() => openDetail(p)}
+                      />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {p.equipmentType.icon} {p.equipmentType.code}
@@ -771,6 +831,15 @@ export function InventoryPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => openDetail(p)}
+                          title="ดูรายละเอียด"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -847,6 +916,83 @@ export function InventoryPage() {
           void refetch();
         }}
       />
+
+      {/* Detail Dialog */}
+      <Dialog open={!!detailTarget} onOpenChange={(v) => !v && setDetailTarget(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4" /> รายละเอียด Spare Part
+            </DialogTitle>
+            {detailTarget && (
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="font-mono text-[11px]">
+                  {detailTarget.modelCode}
+                </Badge>
+                <Badge variant="secondary" className="text-[11px]">
+                  {detailTarget.equipmentType.code}
+                </Badge>
+                <Badge variant="secondary" className="text-[11px]">
+                  {detailTarget.brand.name}
+                </Badge>
+              </div>
+            )}
+          </DialogHeader>
+
+          {detailTarget && (
+            <div className="space-y-5">
+              <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+                <div className="flex items-center justify-center rounded-xl border bg-muted/20 p-4">
+                  {detailTarget.imageUrl ? (
+                    <img
+                      src={detailTarget.imageUrl}
+                      alt={detailTarget.productName}
+                      className="max-h-56 w-full rounded-lg object-contain"
+                    />
+                  ) : (
+                    <div className="flex h-56 w-full items-center justify-center rounded-lg border border-dashed bg-white text-sm text-muted-foreground">
+                      ไม่มีรูปภาพ
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <DetailItem
+                    label="Product Name"
+                    value={<span className="font-medium">{detailTarget.productName}</span>}
+                  />
+                  <DetailItem label="Status" value={<StatusBadge status={detailTarget.status} />} />
+                  <DetailItem
+                    label="Site"
+                    value={`${detailTarget.site.code} — ${detailTarget.site.name}`}
+                  />
+                  <DetailItem
+                    label="Type"
+                    value={`${detailTarget.equipmentType.icon ?? ''} ${detailTarget.equipmentType.code}`}
+                  />
+                  <DetailItem label="Brand" value={detailTarget.brand.name} />
+                  <DetailItem label="Material Code" value={detailTarget.materialCode ?? '—'} />
+                  <DetailItem label="Serial Number" value={detailTarget.serialNumber ?? '—'} />
+                  <DetailItem label="MAC Address" value={detailTarget.macAddress ?? '—'} />
+                  <DetailItem label="Quantity" value={detailTarget.quantity} />
+                  <DetailItem label="Min Stock" value={detailTarget.minStock} />
+                  <DetailItem
+                    label="Cost"
+                    value={
+                      detailTarget.cost != null
+                        ? Number(detailTarget.cost).toLocaleString('th-TH')
+                        : '—'
+                    }
+                  />
+                  <DetailItem label="Location" value={detailTarget.location ?? '—'} />
+                </div>
+              </div>
+
+              <DetailItem label="Remark" value={detailTarget.remark ?? '—'} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirm */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
