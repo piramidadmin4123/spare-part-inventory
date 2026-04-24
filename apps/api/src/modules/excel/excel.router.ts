@@ -210,6 +210,25 @@ excelRouter.post(
           return v;
         };
 
+        // Build row → base64 image map from sheet images
+        const rowImageMap = new Map<number, string>();
+        const wbMedia = (
+          wb as unknown as { model?: { media?: Array<{ buffer: Buffer; extension: string }> } }
+        ).model?.media;
+        if (wbMedia) {
+          for (const placement of ws.getImages()) {
+            const nativeRow = placement.range?.tl?.nativeRow;
+            if (nativeRow == null) continue;
+            const oneIndexedRow = nativeRow + 1;
+            const imgMedia = wbMedia[placement.imageId as unknown as number];
+            if (!imgMedia?.buffer) continue;
+            rowImageMap.set(
+              oneIndexedRow,
+              `data:image/${imgMedia.extension};base64,${imgMedia.buffer.toString('base64')}`
+            );
+          }
+        }
+
         for (let r = headerRow + 1; r <= ws.rowCount; r++) {
           const row = ws.getRow(r);
           // Read type/brand early so we can use them as productName fallback
@@ -253,6 +272,7 @@ excelRouter.post(
           const serialNumber = rawSerial || null;
           const macAddress = String(cv(row, colMap.macAddress) ?? '').trim() || null;
           const remark = rawRemark || null;
+          const imageUrl = rowImageMap.get(r) ?? undefined;
 
           try {
             // Upsert equipment type by code (default to "Unknown" if blank)
@@ -295,6 +315,7 @@ excelRouter.post(
                   serialNumber,
                   macAddress,
                   remark,
+                  ...(imageUrl && { imageUrl }),
                 },
               });
               partId = up.id;
@@ -314,6 +335,7 @@ excelRouter.post(
                   serialNumber,
                   macAddress,
                   remark,
+                  imageUrl,
                 },
               });
               partId = cr.id;
@@ -442,7 +464,6 @@ excelRouter.post(
             const nativeRow = placement.range?.tl?.nativeRow;
             if (nativeRow == null) continue;
             const oneIndexedRow = nativeRow + 1;
-            if (rowImageMap.has(oneIndexedRow)) continue;
             const imgMedia = wbMedia[placement.imageId as unknown as number];
             if (!imgMedia?.buffer) continue;
             rowImageMap.set(

@@ -1156,6 +1156,14 @@ export function BorrowPage() {
                   }
                 />
                 <DetailField
+                  label="Serial Number"
+                  value={detailTarget.sparePart.serialNumber ?? '—'}
+                />
+                <DetailField
+                  label="Material Code"
+                  value={detailTarget.sparePart.materialCode ?? '—'}
+                />
+                <DetailField
                   label="สถานะ"
                   value={
                     <div className="flex flex-wrap items-center gap-2">
