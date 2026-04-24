@@ -12,8 +12,8 @@ const auditLogInclude = {
   user: { select: { id: true, name: true, email: true, role: true } },
 } satisfies Prisma.AuditLogInclude;
 
-// GET /api/audit-logs — ADMIN, SUPER_ADMIN
-auditLogsRouter.get('/', requireRole('ADMIN'), async (req, res, next) => {
+// GET /api/audit-logs — SUPER_ADMIN only
+auditLogsRouter.get('/', requireRole('SUPER_ADMIN'), async (req, res, next) => {
   try {
     const { page = '1', limit = '20' } = req.query as Record<string, string>;
     const p = Math.max(1, parseInt(page, 10));

@@ -605,6 +605,7 @@ function BrandsTab() {
 
 export function SettingsPage() {
   const { user } = useAuthStore();
+  const showAuditLogsTab = isSuperAdminRole(user?.role, user?.email);
   const showUsersTab = isSuperAdminRole(user?.role, user?.email);
 
   return (
@@ -615,7 +616,7 @@ export function SettingsPage() {
           <TabsTrigger value="sites">Sites</TabsTrigger>
           <TabsTrigger value="equipment-types">ประเภทอุปกรณ์</TabsTrigger>
           <TabsTrigger value="brands">Brands</TabsTrigger>
-          <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
+          {showAuditLogsTab && <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>}
           {showUsersTab && <TabsTrigger value="users">Accounts</TabsTrigger>}
         </TabsList>
         <TabsContent value="sites">
@@ -627,9 +628,11 @@ export function SettingsPage() {
         <TabsContent value="brands">
           <BrandsTab />
         </TabsContent>
-        <TabsContent value="audit-logs">
-          <SettingsAuditLogsTab />
-        </TabsContent>
+        {showAuditLogsTab && (
+          <TabsContent value="audit-logs">
+            <SettingsAuditLogsTab />
+          </TabsContent>
+        )}
         {showUsersTab && (
           <TabsContent value="users">
             <SettingsUsersTab />
