@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { authApi } from '@/features/auth/api';
 import { useAuthStore } from '@/store/auth.store';
-import { ROLE_LABELS } from '@/lib/roles';
+import { ROLE_LABELS, getEffectiveUserRole } from '@/lib/roles';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -47,7 +47,9 @@ export function ProfilePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             {user?.email}
-            <Badge variant="secondary">{ROLE_LABELS[user?.role ?? 'VIEWER']}</Badge>
+            <Badge variant="secondary">
+              {ROLE_LABELS[getEffectiveUserRole(user?.email, user?.role) ?? 'VIEWER']}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>

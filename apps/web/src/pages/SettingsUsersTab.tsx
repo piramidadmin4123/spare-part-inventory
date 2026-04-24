@@ -11,7 +11,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuthStore } from '@/store/auth.store';
-import { ROLE_LABELS, SUPER_ADMIN_EMAILS, isSuperAdminEmail } from '@/lib/roles';
+import {
+  ROLE_LABELS,
+  SUPER_ADMIN_EMAILS,
+  getEffectiveUserRole,
+  isSuperAdminEmail,
+} from '@/lib/roles';
 import { useUsers, useUpdateUserRole } from '@/features/users/useUsers';
 import type { UserRole } from '@spare-part/shared';
 
@@ -76,10 +81,11 @@ export function SettingsUsersTab() {
               );
               const isCurrentUser = account.id === currentUser?.id;
               const isLocked = isFixedSuperAdmin || isCurrentUser;
+              const effectiveRole = getEffectiveUserRole(account.email, account.role);
               const currentEditableRole =
-                account.role === 'SUPER_ADMIN'
+                effectiveRole === 'SUPER_ADMIN'
                   ? 'ADMIN'
-                  : (account.role as Exclude<UserRole, 'SUPER_ADMIN'>);
+                  : (effectiveRole as Exclude<UserRole, 'SUPER_ADMIN'>);
               const selectedRole = draftRoles[account.id] ?? currentEditableRole;
               const isDirty = selectedRole !== currentEditableRole;
 
@@ -93,7 +99,7 @@ export function SettingsUsersTab() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary">{ROLE_LABELS[account.role]}</Badge>
+                      <Badge variant="secondary">{ROLE_LABELS[effectiveRole ?? 'VIEWER']}</Badge>
                       {isFixedSuperAdmin && <Badge variant="outline">Fixed</Badge>}
                       {isCurrentUser && <Badge variant="outline">You</Badge>}
                     </div>

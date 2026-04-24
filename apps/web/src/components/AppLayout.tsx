@@ -14,7 +14,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useLogout } from '@/features/auth/useAuth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ROLE_LABELS, canAccessSettings } from '@/lib/roles';
+import { ROLE_LABELS, canAccessSettings, getEffectiveUserRole } from '@/lib/roles';
 
 const NAV_ITEMS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -56,7 +56,7 @@ export function AppLayout() {
             </NavLink>
           ))}
 
-          {canAccessSettings(user?.role) && (
+          {canAccessSettings(user?.role, user?.email) && (
             <NavLink
               to="/settings"
               className={({ isActive }) =>
@@ -83,7 +83,7 @@ export function AppLayout() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium text-white">{user?.name}</p>
               <Badge className="mt-0.5 h-4 bg-zinc-700 text-[10px] text-zinc-300 hover:bg-zinc-700">
-                {ROLE_LABELS[user?.role ?? 'VIEWER']}
+                {ROLE_LABELS[getEffectiveUserRole(user?.email, user?.role) ?? 'VIEWER']}
               </Badge>
             </div>
           </div>

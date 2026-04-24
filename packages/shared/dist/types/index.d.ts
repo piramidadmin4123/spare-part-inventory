@@ -37,6 +37,17 @@ export interface User {
   createdAt: string;
   updatedAt: string;
 }
+export interface AuditLog {
+  id: string;
+  user?: Pick<User, 'id' | 'name' | 'email' | 'role'> | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  oldValue?: unknown;
+  newValue?: unknown;
+  ipAddress?: string | null;
+  createdAt: string;
+}
 export interface Site {
   id: string;
   code: string;

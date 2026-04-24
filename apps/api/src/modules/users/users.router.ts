@@ -3,7 +3,8 @@ import type { Router as IRouter } from 'express';
 import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { AppError } from '../../middleware/error-handler.js';
 import { prisma } from '../../lib/prisma.js';
-import { isSuperAdminEmail, resolveUserRole } from '../../lib/roles.js';
+import { isSuperAdminEmail, resolveUserRole, syncFixedSuperAdminRole } from '../../lib/roles.js';
+import { recordAuditLog } from '../../lib/audit.js';
 import { updateUserRoleSchema } from '@spare-part/shared';
 
 export const usersRouter: IRouter = Router();
@@ -27,6 +28,12 @@ usersRouter.get('/', requireRole('SUPER_ADMIN'), async (_req, res, next) => {
         updatedAt: true,
       },
     });
+
+    await Promise.all(
+      users
+        .filter((user) => isSuperAdminEmail(user.email) && user.role !== 'SUPER_ADMIN')
+        .map((user) => syncFixedSuperAdminRole(user))
+    );
 
     res.json(
       users.map((user) => ({
@@ -88,6 +95,16 @@ usersRouter.patch('/:id/role', requireRole('SUPER_ADMIN'), async (req, res, next
         updatedAt: true,
       },
     });
+
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'UPDATE_ROLE',
+      entityType: 'User',
+      entityId: updated.id,
+      oldValue: { role: target.role },
+      newValue: { role: updated.role },
+      ipAddress: req.ip,
+    }).catch(() => {});
 
     res.json({ ...updated, role: resolveUserRole(updated.email, updated.role) });
   } catch (err) {

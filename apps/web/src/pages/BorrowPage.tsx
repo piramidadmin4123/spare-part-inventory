@@ -716,7 +716,7 @@ const LIMIT = 20;
 
 export function BorrowPage() {
   const { user } = useAuthStore();
-  const canManageBorrows = isAdminLikeRole(user?.role);
+  const canManageBorrows = isAdminLikeRole(user?.role, user?.email);
   const qc = useQueryClient();
   const [now, setNow] = useState(() => Date.now());
 
@@ -861,7 +861,8 @@ export function BorrowPage() {
                   tx.status === 'PENDING' && (canManageBorrows || tx.borrower.id === user?.id);
                 const canEdit = tx.status === 'PENDING' && tx.borrower.id === user?.id;
                 const canDelete =
-                  isSuperAdminRole(user?.role) || (tx.status === 'PENDING' && canManageBorrows);
+                  isSuperAdminRole(user?.role, user?.email) ||
+                  (tx.status === 'PENDING' && canManageBorrows);
                 const canBorrowAgain = user?.role !== 'VIEWER' && tx.status === 'REJECTED';
                 const overdueDays = getOverdueDays(tx.expectedReturn, now);
                 const isOverdue = tx.status === 'APPROVED' && overdueDays > 0;

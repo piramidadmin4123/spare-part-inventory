@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { prisma } from '../../lib/prisma.js';
-import { resolveUserRole } from '../../lib/roles.js';
+import { resolveUserRole, syncFixedSuperAdminRole } from '../../lib/roles.js';
 import { AppError } from '../../middleware/error-handler.js';
 import type { AuthUser } from '../../middleware/auth.js';
 import type { LoginInput, RegisterInput, UpdateProfileInput } from '@spare-part/shared';
@@ -34,7 +34,7 @@ export async function login(input: LoginInput) {
   const accessToken = signToken({ id: user.id, email: user.email, role });
   const { passwordHash: _, ...safeUser } = user;
 
-  return { user: { ...safeUser, role }, accessToken };
+  return { user: await syncFixedSuperAdminRole({ ...safeUser, role }), accessToken };
 }
 
 export async function register(input: RegisterInput) {
@@ -58,7 +58,7 @@ export async function register(input: RegisterInput) {
   const accessToken = signToken({ id: user.id, email: user.email, role: user.role });
   const { passwordHash: _, ...safeUser } = user;
 
-  return { user: safeUser, accessToken };
+  return { user: await syncFixedSuperAdminRole(safeUser), accessToken };
 }
 
 export async function getMe(userId: string) {
@@ -67,7 +67,7 @@ export async function getMe(userId: string) {
     omit: { passwordHash: true },
   });
   if (!user) throw new AppError(404, 'NOT_FOUND', 'User not found');
-  return { ...user, role: resolveUserRole(user.email, user.role) };
+  return syncFixedSuperAdminRole({ ...user, role: resolveUserRole(user.email, user.role) });
 }
 
 export async function updateProfile(userId: string, input: UpdateProfileInput) {
@@ -76,7 +76,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
     data: input,
     omit: { passwordHash: true },
   });
-  return { ...user, role: resolveUserRole(user.email, user.role) };
+  return syncFixedSuperAdminRole({ ...user, role: resolveUserRole(user.email, user.role) });
 }
 
 // ── Microsoft O365 SSO ────────────────────────────────────────────────────
@@ -170,5 +170,5 @@ export async function loginWithMicrosoft(idToken: string) {
   const role = resolveUserRole(user.email, user.role);
   const accessToken = signToken({ id: user.id, email: user.email, role });
   const { passwordHash: _, ...safeUser } = user;
-  return { user: { ...safeUser, role }, accessToken };
+  return { user: await syncFixedSuperAdminRole({ ...safeUser, role }), accessToken };
 }

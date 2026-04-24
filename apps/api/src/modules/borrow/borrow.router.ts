@@ -19,6 +19,7 @@ import {
   notifyBorrowReturned,
 } from '../../lib/notify.js';
 import { isSuperAdminRole } from '../../lib/roles.js';
+import { recordAuditLog } from '../../lib/audit.js';
 
 export const borrowRouter: IRouter = Router();
 
@@ -194,7 +195,15 @@ borrowRouter.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, ne
     const id = req.params.id as string;
     const tx = await prisma.borrowTransaction.findUnique({
       where: { id },
-      select: { id: true, status: true, sparePartId: true },
+      select: {
+        id: true,
+        status: true,
+        sparePartId: true,
+        borrowerId: true,
+        approverId: true,
+        borrowerRemark: true,
+        approverRemark: true,
+      },
     });
     if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
     const canForceDelete = isSuperAdminRole(req.user?.role);
@@ -213,6 +222,16 @@ borrowRouter.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, ne
     } else {
       await prisma.borrowTransaction.delete({ where: { id } });
     }
+
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'DELETE',
+      entityType: 'BorrowTransaction',
+      entityId: tx.id,
+      oldValue: tx,
+      newValue: null,
+      ipAddress: req.ip,
+    }).catch(() => {});
 
     res.status(204).end();
   } catch (err) {
@@ -255,6 +274,16 @@ borrowRouter.patch('/:id/approve', requireRole('ADMIN', 'MANAGER'), async (req, 
       }),
     ]);
 
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'APPROVE',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: { status: tx.status, sparePartId: tx.sparePartId },
+      newValue: { status: updated.status, sparePartId: updated.sparePart.id },
+      ipAddress: req.ip,
+    }).catch(() => {});
+
     res.json(updated);
 
     notifyBorrowApproved({
@@ -294,6 +323,16 @@ borrowRouter.patch('/:id/reject', requireRole('ADMIN', 'MANAGER'), async (req, r
       },
       include: borrowInclude,
     });
+
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'REJECT',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: { status: tx.status, sparePartId: tx.sparePartId },
+      newValue: { status: updated.status, sparePartId: updated.sparePart.id },
+      ipAddress: req.ip,
+    }).catch(() => {});
 
     res.json(updated);
 
@@ -346,6 +385,24 @@ borrowRouter.patch('/:id/restore', requireRole('ADMIN', 'MANAGER'), async (req, 
       },
       include: borrowInclude,
     });
+
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'RESTORE',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: {
+        status: tx.status,
+        approverId: tx.approverId,
+        approverRemark: tx.approverRemark,
+      },
+      newValue: {
+        status: updated.status,
+        approverId: updated.approverId,
+        approverRemark: updated.approverRemark,
+      },
+      ipAddress: req.ip,
+    }).catch(() => {});
 
     res.json(updated);
   } catch (err) {
@@ -404,6 +461,24 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
       }),
     ]);
 
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'RETURN',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: {
+        status: tx.status,
+        actualReturn: tx.actualReturn,
+        expectedReturn: tx.expectedReturn,
+      },
+      newValue: {
+        status: updated.status,
+        actualReturn: updated.actualReturn,
+        expectedReturn: updated.expectedReturn,
+      },
+      ipAddress: req.ip,
+    }).catch(() => {});
+
     res.json(updated);
 
     notifyBorrowReturned({
@@ -446,6 +521,16 @@ borrowRouter.patch('/:id/cancel', async (req, res, next) => {
       },
       include: borrowInclude,
     });
+
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'CANCEL',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: { status: tx.status, borrowerRemark: tx.borrowerRemark },
+      newValue: { status: updated.status, borrowerRemark: updated.borrowerRemark },
+      ipAddress: req.ip,
+    }).catch(() => {});
 
     res.json(updated);
   } catch (err) {

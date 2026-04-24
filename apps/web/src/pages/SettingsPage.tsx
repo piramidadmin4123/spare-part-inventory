@@ -68,6 +68,7 @@ import {
 import { useAuthStore } from '@/store/auth.store';
 import { isSuperAdminRole } from '@/lib/roles';
 import { SettingsUsersTab } from './SettingsUsersTab';
+import { SettingsAuditLogsTab } from './SettingsAuditLogsTab';
 
 // ── Generic delete confirm ─────────────────────────────────────────────────
 
@@ -604,7 +605,7 @@ function BrandsTab() {
 
 export function SettingsPage() {
   const { user } = useAuthStore();
-  const showUsersTab = isSuperAdminRole(user?.role);
+  const showUsersTab = isSuperAdminRole(user?.role, user?.email);
 
   return (
     <div className="p-6">
@@ -614,6 +615,7 @@ export function SettingsPage() {
           <TabsTrigger value="sites">Sites</TabsTrigger>
           <TabsTrigger value="equipment-types">ประเภทอุปกรณ์</TabsTrigger>
           <TabsTrigger value="brands">Brands</TabsTrigger>
+          <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
           {showUsersTab && <TabsTrigger value="users">Accounts</TabsTrigger>}
         </TabsList>
         <TabsContent value="sites">
@@ -624,6 +626,9 @@ export function SettingsPage() {
         </TabsContent>
         <TabsContent value="brands">
           <BrandsTab />
+        </TabsContent>
+        <TabsContent value="audit-logs">
+          <SettingsAuditLogsTab />
         </TabsContent>
         {showUsersTab && (
           <TabsContent value="users">

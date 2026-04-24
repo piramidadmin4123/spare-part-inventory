@@ -48,11 +48,11 @@ function App() {
               <Route path="/orders" element={<AdditionalOrdersPage />} />
               <Route path="/sites" element={<SitesPage />} />
 
-              {/* Admin only */}
+              {/* Admin / SuperAdmin only */}
               <Route
                 path="/settings/*"
                 element={
-                  <ProtectedRoute roles={['ADMIN']}>
+                  <ProtectedRoute roles={['ADMIN', 'SUPER_ADMIN']}>
                     <SettingsPage />
                   </ProtectedRoute>
                 }

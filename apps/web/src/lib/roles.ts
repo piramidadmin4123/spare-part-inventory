@@ -20,14 +20,28 @@ export function isSuperAdminEmail(email?: string | null): boolean {
   return SUPER_ADMIN_EMAIL_SET.has(email.toLowerCase());
 }
 
-export function isSuperAdminRole(role?: UserRole | null): boolean {
-  return role === 'SUPER_ADMIN';
+export function getEffectiveUserRole(
+  email?: string | null,
+  role?: UserRole | null
+): UserRole | null {
+  if (isSuperAdminEmail(email)) {
+    return 'SUPER_ADMIN';
+  }
+  return role ?? null;
 }
 
-export function isAdminLikeRole(role?: UserRole | null): boolean {
-  return role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'MANAGER';
+export function isSuperAdminRole(role?: UserRole | null, email?: string | null): boolean {
+  return getEffectiveUserRole(email, role) === 'SUPER_ADMIN';
 }
 
-export function canAccessSettings(role?: UserRole | null): boolean {
-  return role === 'SUPER_ADMIN' || role === 'ADMIN';
+export function isAdminLikeRole(role?: UserRole | null, email?: string | null): boolean {
+  const effectiveRole = getEffectiveUserRole(email, role);
+  return (
+    effectiveRole === 'SUPER_ADMIN' || effectiveRole === 'ADMIN' || effectiveRole === 'MANAGER'
+  );
+}
+
+export function canAccessSettings(role?: UserRole | null, email?: string | null): boolean {
+  const effectiveRole = getEffectiveUserRole(email, role);
+  return effectiveRole === 'SUPER_ADMIN' || effectiveRole === 'ADMIN';
 }

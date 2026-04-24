@@ -519,7 +519,7 @@ function OrderFormDialog({
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function AdditionalOrdersPage() {
   const { user } = useAuthStore();
-  const canEdit = isAdminLikeRole(user?.role);
+  const canEdit = isAdminLikeRole(user?.role, user?.email);
 
   const [search, setSearch] = useState('');
   const [siteId, setSiteId] = useState('');
