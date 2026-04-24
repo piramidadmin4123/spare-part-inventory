@@ -18,6 +18,7 @@ import {
   notifyBorrowRejected,
   notifyBorrowReturned,
 } from '../../lib/notify.js';
+import { isSuperAdminRole } from '../../lib/roles.js';
 
 export const borrowRouter: IRouter = Router();
 
@@ -187,16 +188,32 @@ borrowRouter.patch('/:id', async (req, res, next) => {
   }
 });
 
-// DELETE /api/borrow/:id — ADMIN, MANAGER only
+// DELETE /api/borrow/:id — ADMIN, MANAGER, SUPER_ADMIN
 borrowRouter.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    const tx = await prisma.borrowTransaction.findUnique({ where: { id } });
+    const tx = await prisma.borrowTransaction.findUnique({
+      where: { id },
+      select: { id: true, status: true, sparePartId: true },
+    });
     if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
-    if (tx.status !== 'PENDING')
+    const canForceDelete = isSuperAdminRole(req.user?.role);
+
+    if (tx.status !== 'PENDING' && !canForceDelete)
       throw new AppError(409, 'CONFLICT', 'Only PENDING requests can be deleted');
 
-    await prisma.borrowTransaction.delete({ where: { id } });
+    if (tx.status === 'APPROVED') {
+      await prisma.$transaction([
+        prisma.sparePart.update({
+          where: { id: tx.sparePartId },
+          data: { status: 'IN_STOCK', quantity: { increment: 1 } },
+        }),
+        prisma.borrowTransaction.delete({ where: { id } }),
+      ]);
+    } else {
+      await prisma.borrowTransaction.delete({ where: { id } });
+    }
+
     res.status(204).end();
   } catch (err) {
     next(err);

@@ -57,6 +57,7 @@ import {
 import { useSites, useBrands } from '@/features/master-data/useMasterData';
 import { useAuthStore } from '@/store/auth.store';
 import type { AdditionalOrder } from '@/features/additional-orders/api';
+import { isAdminLikeRole } from '@/lib/roles';
 
 const LIMIT = 50;
 
@@ -518,7 +519,7 @@ function OrderFormDialog({
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function AdditionalOrdersPage() {
   const { user } = useAuthStore();
-  const canEdit = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const canEdit = isAdminLikeRole(user?.role);
 
   const [search, setSearch] = useState('');
   const [siteId, setSiteId] = useState('');

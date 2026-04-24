@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { prisma } from './prisma.js';
+import { SUPER_ADMIN_EMAILS } from './roles.js';
 
 // ── Config ─────────────────────────────────────────────────────────────────
 
@@ -18,7 +19,12 @@ const BORROW_PAGE_URL = 'https://spare-part-inventory-web.vercel.app/borrow';
 
 async function getAdminEmails(): Promise<string[]> {
   const users = await prisma.user.findMany({
-    where: { role: { in: ['ADMIN', 'MANAGER'] } },
+    where: {
+      OR: [
+        { role: { in: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] } },
+        { email: { in: [...SUPER_ADMIN_EMAILS] } },
+      ],
+    },
     select: { email: true },
   });
   const dbEmails = users.map((u) => u.email).filter(Boolean) as string[];

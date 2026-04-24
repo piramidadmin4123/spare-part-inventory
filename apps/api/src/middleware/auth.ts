@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AppError } from './error-handler.js';
 import type { UserRole } from '@prisma/client';
+import { resolveUserRole, isSuperAdminRole } from '../lib/roles.js';
 
 export interface AuthUser {
   id: string;
@@ -26,7 +27,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
   const token = authHeader.slice(7);
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET!) as AuthUser;
-    req.user = payload;
+    req.user = { ...payload, role: resolveUserRole(payload.email, payload.role) };
     next();
   } catch {
     throw new AppError(401, 'UNAUTHORIZED', 'Invalid or expired token');
@@ -38,7 +39,7 @@ export function requireRole(...roles: UserRole[]) {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Authentication required');
     }
-    if (!roles.includes(req.user.role)) {
+    if (!isSuperAdminRole(req.user.role) && !roles.includes(req.user.role)) {
       throw new AppError(403, 'FORBIDDEN', 'Insufficient permissions');
     }
     next();

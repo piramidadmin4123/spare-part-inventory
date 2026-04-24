@@ -1,5 +1,5 @@
 // ── Enums ─────────────────────────────────────────────────────────────────
-export type UserRole = 'ADMIN' | 'MANAGER' | 'TECHNICIAN' | 'VIEWER';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'TECHNICIAN' | 'VIEWER';
 
 export type ItemStatus =
   | 'IN_SERVICE'

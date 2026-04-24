@@ -74,6 +74,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useSpareParts } from '@/features/inventory/useInventory';
 import { useAuthStore } from '@/store/auth.store';
+import { isAdminLikeRole, isSuperAdminRole } from '@/lib/roles';
 
 // ── Status config ──────────────────────────────────────────────────────────
 
@@ -715,7 +716,7 @@ const LIMIT = 20;
 
 export function BorrowPage() {
   const { user } = useAuthStore();
-  const isManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const canManageBorrows = isAdminLikeRole(user?.role);
   const qc = useQueryClient();
   const [now, setNow] = useState(() => Date.now());
 
@@ -770,7 +771,7 @@ export function BorrowPage() {
       <div className="flex items-center justify-between border-b bg-white px-6 py-4">
         <h1 className="text-xl font-bold">ยืม / คืน</h1>
         <div className="flex items-center gap-2">
-          {isManager && (
+          {canManageBorrows && (
             <>
               <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                 <Upload className="mr-1 h-4 w-4" /> Import
@@ -853,13 +854,14 @@ export function BorrowPage() {
               </TableRow>
             ) : (
               txs.map((tx) => {
-                const canApproveReject = isManager && tx.status === 'PENDING';
+                const canApproveReject = canManageBorrows && tx.status === 'PENDING';
                 const canReturn =
-                  tx.status === 'APPROVED' && (isManager || tx.borrower.id === user?.id);
+                  tx.status === 'APPROVED' && (canManageBorrows || tx.borrower.id === user?.id);
                 const canCancel =
-                  tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
+                  tx.status === 'PENDING' && (canManageBorrows || tx.borrower.id === user?.id);
                 const canEdit = tx.status === 'PENDING' && tx.borrower.id === user?.id;
-                const canDelete = tx.status === 'PENDING' && isManager;
+                const canDelete =
+                  isSuperAdminRole(user?.role) || (tx.status === 'PENDING' && canManageBorrows);
                 const canBorrowAgain = user?.role !== 'VIEWER' && tx.status === 'REJECTED';
                 const overdueDays = getOverdueDays(tx.expectedReturn, now);
                 const isOverdue = tx.status === 'APPROVED' && overdueDays > 0;

@@ -13,6 +13,7 @@ import { borrowRouter } from './modules/borrow/borrow.router.js';
 import { excelRouter } from './modules/excel/excel.router.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.router.js';
 import { additionalOrdersRouter } from './modules/additional-orders/additional-orders.router.js';
+import { usersRouter } from './modules/users/users.router.js';
 
 const app: Express = express();
 
@@ -44,6 +45,7 @@ app.use('/api/borrow', borrowRouter);
 app.use('/api/excel', excelRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/additional-orders', additionalOrdersRouter);
+app.use('/api/users', usersRouter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
