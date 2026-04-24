@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { authApi } from '@/features/auth/api';
 import { useAuthStore } from '@/store/auth.store';
 import { ROLE_LABELS, getEffectiveUserRole } from '@/lib/roles';
+import { useActionRefresh } from '@/components/action-refresh';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -21,6 +22,7 @@ type FormData = z.infer<typeof schema>;
 
 export function ProfilePage() {
   const { user, accessToken, setAuth } = useAuthStore();
+  const { flashRefresh } = useActionRefresh();
 
   const {
     register,
@@ -35,6 +37,7 @@ export function ProfilePage() {
     mutationFn: (data: FormData) => authApi.updateProfile(data).then((r) => r.data),
     onSuccess: (updated) => {
       setAuth(updated, accessToken!);
+      flashRefresh();
       toast.success('อัปเดตโปรไฟล์สำเร็จ');
     },
     onError: () => toast.error('เกิดข้อผิดพลาด'),

@@ -15,6 +15,7 @@ import { useLogout } from '@/features/auth/useAuth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ROLE_LABELS, canAccessSettings, getEffectiveUserRole } from '@/lib/roles';
+import { ActionRefreshOverlay } from '@/components/action-refresh';
 
 const NAV_ITEMS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -111,7 +112,8 @@ export function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
+      <main className="relative flex-1 overflow-auto">
+        <ActionRefreshOverlay />
         <Outlet />
       </main>
     </div>

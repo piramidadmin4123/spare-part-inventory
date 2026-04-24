@@ -4,6 +4,7 @@ import { sitesApi, equipmentTypesApi, brandsApi } from './api';
 import type { CreateSiteInput, UpdateSiteInput } from '@spare-part/shared';
 import type { CreateEquipmentTypeInput, UpdateEquipmentTypeInput } from '@spare-part/shared';
 import type { CreateBrandInput, UpdateBrandInput } from '@spare-part/shared';
+import { useActionRefresh } from '@/components/action-refresh';
 
 // ── Sites ─────────────────────────────────────────────────────────────────
 
@@ -22,10 +23,12 @@ export function useSiteStats() {
 
 export function useCreateSite() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: (data: CreateSiteInput) => sitesApi.create(data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: SITES_KEY });
+      flashRefresh();
       toast.success('เพิ่ม Site สำเร็จ');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -35,11 +38,13 @@ export function useCreateSite() {
 
 export function useUpdateSite() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateSiteInput }) =>
       sitesApi.update(id, data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: SITES_KEY });
+      flashRefresh();
       toast.success('อัปเดต Site สำเร็จ');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -49,10 +54,12 @@ export function useUpdateSite() {
 
 export function useDeleteSite() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: (id: string) => sitesApi.remove(id).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: SITES_KEY });
+      flashRefresh();
       toast.success('ปิดใช้งาน Site สำเร็จ');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -73,11 +80,13 @@ export function useEquipmentTypes() {
 
 export function useCreateEquipmentType() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: (data: CreateEquipmentTypeInput) =>
       equipmentTypesApi.create(data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: EQUIPMENT_TYPES_KEY });
+      flashRefresh();
       toast.success('เพิ่มประเภทอุปกรณ์สำเร็จ');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -87,11 +96,13 @@ export function useCreateEquipmentType() {
 
 export function useUpdateEquipmentType() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateEquipmentTypeInput }) =>
       equipmentTypesApi.update(id, data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: EQUIPMENT_TYPES_KEY });
+      flashRefresh();
       toast.success('อัปเดตประเภทอุปกรณ์สำเร็จ');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -101,10 +112,12 @@ export function useUpdateEquipmentType() {
 
 export function useDeleteEquipmentType() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: (id: string) => equipmentTypesApi.remove(id).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: EQUIPMENT_TYPES_KEY });
+      flashRefresh();
       toast.success('ลบประเภทอุปกรณ์สำเร็จ');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -122,10 +135,12 @@ export function useBrands() {
 
 export function useCreateBrand() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: (data: CreateBrandInput) => brandsApi.create(data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: BRANDS_KEY });
+      flashRefresh();
       toast.success('เพิ่ม Brand สำเร็จ');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -135,11 +150,13 @@ export function useCreateBrand() {
 
 export function useUpdateBrand() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateBrandInput }) =>
       brandsApi.update(id, data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: BRANDS_KEY });
+      flashRefresh();
       toast.success('อัปเดต Brand สำเร็จ');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
@@ -149,10 +166,12 @@ export function useUpdateBrand() {
 
 export function useDeleteBrand() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: (id: string) => brandsApi.remove(id).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: BRANDS_KEY });
+      flashRefresh();
       toast.success('ลบ Brand สำเร็จ');
     },
     onError: (err: { response?: { data?: { message?: string } } }) =>
