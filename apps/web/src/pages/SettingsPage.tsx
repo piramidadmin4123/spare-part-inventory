@@ -65,6 +65,10 @@ import {
   useUpdateBrand,
   useDeleteBrand,
 } from '@/features/master-data/useMasterData';
+import { useAuthStore } from '@/store/auth.store';
+import { isSuperAdminRole } from '@/lib/roles';
+import { SettingsUsersTab } from './SettingsUsersTab';
+import { SettingsAuditLogsTab } from './SettingsAuditLogsTab';
 
 // ── Generic delete confirm ─────────────────────────────────────────────────
 
@@ -600,6 +604,10 @@ function BrandsTab() {
 // ── SettingsPage ───────────────────────────────────────────────────────────
 
 export function SettingsPage() {
+  const { user } = useAuthStore();
+  const showAuditLogsTab = isSuperAdminRole(user?.role, user?.email);
+  const showUsersTab = isSuperAdminRole(user?.role, user?.email);
+
   return (
     <div className="p-6">
       <h1 className="mb-4 text-2xl font-bold">Settings</h1>
@@ -608,6 +616,8 @@ export function SettingsPage() {
           <TabsTrigger value="sites">Sites</TabsTrigger>
           <TabsTrigger value="equipment-types">ประเภทอุปกรณ์</TabsTrigger>
           <TabsTrigger value="brands">Brands</TabsTrigger>
+          {showAuditLogsTab && <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>}
+          {showUsersTab && <TabsTrigger value="users">Accounts</TabsTrigger>}
         </TabsList>
         <TabsContent value="sites">
           <SitesTab />
@@ -618,6 +628,16 @@ export function SettingsPage() {
         <TabsContent value="brands">
           <BrandsTab />
         </TabsContent>
+        {showAuditLogsTab && (
+          <TabsContent value="audit-logs">
+            <SettingsAuditLogsTab />
+          </TabsContent>
+        )}
+        {showUsersTab && (
+          <TabsContent value="users">
+            <SettingsUsersTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -12,6 +12,7 @@ datasource db {
 // ── Enums ─────────────────────────────────────────────────────────────────
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   MANAGER
   TECHNICIAN

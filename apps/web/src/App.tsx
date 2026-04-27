@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { RegisterPage } from '@/features/auth/RegisterPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AppLayout } from '@/components/AppLayout';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -12,6 +13,7 @@ import { InventoryPage } from '@/pages/InventoryPage';
 import { BorrowPage } from '@/pages/BorrowPage';
 import { AdditionalOrdersPage } from '@/pages/AdditionalOrdersPage';
 import { SitesPage } from '@/pages/SitesPage';
+import { ActionRefreshProvider } from '@/components/action-refresh';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,46 +24,49 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Public */}
-            <Route path="/login" element={<LoginPage />} />
+      <ActionRefreshProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              {/* Public */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
-            {/* Protected — all roles */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AppLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-
-              {/* Coming in future phases */}
-              <Route path="/inventory" element={<InventoryPage />} />
-              <Route path="/borrow" element={<BorrowPage />} />
-              <Route path="/orders" element={<AdditionalOrdersPage />} />
-              <Route path="/sites" element={<SitesPage />} />
-
-              {/* Admin only */}
+              {/* Protected — all roles */}
               <Route
-                path="/settings/*"
                 element={
-                  <ProtectedRoute roles={['ADMIN']}>
-                    <SettingsPage />
+                  <ProtectedRoute>
+                    <AppLayout />
                   </ProtectedRoute>
                 }
-              />
-            </Route>
+              >
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </AuthProvider>
-        <Toaster richColors position="top-right" />
-      </BrowserRouter>
+                {/* Coming in future phases */}
+                <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/borrow" element={<BorrowPage />} />
+                <Route path="/orders" element={<AdditionalOrdersPage />} />
+                <Route path="/sites" element={<SitesPage />} />
+
+                {/* Admin / SuperAdmin only */}
+                <Route
+                  path="/settings/*"
+                  element={
+                    <ProtectedRoute roles={['ADMIN', 'SUPER_ADMIN']}>
+                      <SettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
+
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </AuthProvider>
+          <Toaster richColors position="top-right" />
+        </BrowserRouter>
+      </ActionRefreshProvider>
     </QueryClientProvider>
   );
 }

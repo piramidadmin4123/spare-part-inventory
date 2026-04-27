@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { authApi } from '@/features/auth/api';
 import { useAuthStore } from '@/store/auth.store';
+import { ROLE_LABELS, getEffectiveUserRole } from '@/lib/roles';
+import { useActionRefresh } from '@/components/action-refresh';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -18,15 +20,9 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: 'Admin',
-  MANAGER: 'Manager',
-  TECHNICIAN: 'Technician',
-  VIEWER: 'Viewer',
-};
-
 export function ProfilePage() {
   const { user, accessToken, setAuth } = useAuthStore();
+  const { flashRefresh } = useActionRefresh();
 
   const {
     register,
@@ -41,6 +37,7 @@ export function ProfilePage() {
     mutationFn: (data: FormData) => authApi.updateProfile(data).then((r) => r.data),
     onSuccess: (updated) => {
       setAuth(updated, accessToken!);
+      flashRefresh();
       toast.success('อัปเดตโปรไฟล์สำเร็จ');
     },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
@@ -53,7 +50,9 @@ export function ProfilePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             {user?.email}
-            <Badge variant="secondary">{ROLE_LABELS[user?.role ?? ''] ?? user?.role}</Badge>
+            <Badge variant="secondary">
+              {ROLE_LABELS[getEffectiveUserRole(user?.email, user?.role) ?? 'VIEWER']}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>

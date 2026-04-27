@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { additionalOrdersApi, type AdditionalOrderFilters, type OrderPayload } from './api';
+import { useActionRefresh } from '@/components/action-refresh';
 
 export const AO_KEY = ['additional-orders'] as const;
 
@@ -22,10 +23,12 @@ export function useOrderImage(id: string | null) {
 
 export function useCreateOrder() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: (data: OrderPayload) => additionalOrdersApi.create(data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: AO_KEY });
+      flashRefresh();
       toast.success('เพิ่มรายการสำเร็จ');
     },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
@@ -34,11 +37,13 @@ export function useCreateOrder() {
 
 export function useUpdateOrder() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: OrderPayload }) =>
       additionalOrdersApi.update(id, data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: AO_KEY });
+      flashRefresh();
       toast.success('บันทึกสำเร็จ');
     },
     onError: () => toast.error('เกิดข้อผิดพลาด'),
@@ -47,10 +52,12 @@ export function useUpdateOrder() {
 
 export function useDeleteOrder() {
   const qc = useQueryClient();
+  const { flashRefresh } = useActionRefresh();
   return useMutation({
     mutationFn: (id: string) => additionalOrdersApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: AO_KEY });
+      flashRefresh();
       toast.success('ลบรายการสำเร็จ');
     },
     onError: () => toast.error('เกิดข้อผิดพลาด'),

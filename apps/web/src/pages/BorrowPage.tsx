@@ -7,6 +7,7 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  Eye,
   CheckCircle,
   XCircle,
   RotateCcw,
@@ -73,6 +74,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useSpareParts } from '@/features/inventory/useInventory';
 import { useAuthStore } from '@/store/auth.store';
+import { isAdminLikeRole, isSuperAdminRole } from '@/lib/roles';
 
 // ── Status config ──────────────────────────────────────────────────────────
 
@@ -94,7 +96,14 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'dest
 
 function StatusBadge({ status }: { status: string }) {
   const opt = STATUS_OPTIONS.find((s) => s.value === status);
-  return <Badge variant={STATUS_VARIANT[status] ?? 'secondary'}>{opt?.label ?? status}</Badge>;
+  return (
+    <Badge
+      variant={STATUS_VARIANT[status] ?? 'secondary'}
+      className="whitespace-nowrap px-2 py-0.5 text-[11px] leading-none"
+    >
+      {opt?.label ?? status}
+    </Badge>
+  );
 }
 
 function fmtDate(d?: string | null) {
@@ -106,18 +115,58 @@ function fmtDate(d?: string | null) {
   }
 }
 
+function getOverdueDays(expectedReturn?: string | null, now = Date.now()) {
+  if (!expectedReturn) return 0;
+
+  const overdueMs = now - new Date(expectedReturn).getTime();
+  if (overdueMs <= 0) return 0;
+
+  return Math.max(1, Math.ceil(overdueMs / (1000 * 60 * 60 * 24)));
+}
+
+function fmtDateTime(d?: string | null) {
+  if (!d) return '—';
+  try {
+    return format(new Date(d), 'dd/MM/yyyy HH:mm');
+  } catch {
+    return d;
+  }
+}
+
+function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <div className="mt-1 text-sm leading-snug text-foreground">{value}</div>
+    </div>
+  );
+}
+
 // ── Create Borrow Dialog ───────────────────────────────────────────────────
 
 function CreateBorrowDialog({
   open,
   onOpenChange,
+  initialSparePartId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  initialSparePartId?: string | null;
 }) {
   const { user } = useAuthStore();
   const createBorrow = useCreateBorrow();
-  const { data: partsData } = useSpareParts({ status: 'IN_STOCK', limit: 100 });
+  const { data: partsData } = useSpareParts(
+    { status: 'IN_STOCK', limit: 100 },
+    {
+      enabled: open,
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: 'always',
+      refetchOnReconnect: 'always',
+    }
+  );
   const parts = partsData?.data ?? [];
 
   const {
@@ -125,6 +174,7 @@ function CreateBorrowDialog({
     handleSubmit,
     setValue,
     watch,
+    resetField,
     reset,
     formState: { errors },
   } = useForm<BorrowRequestInput>({
@@ -134,6 +184,19 @@ function CreateBorrowDialog({
       borrowerEmail: user?.email ?? '',
     },
   });
+  const selectedSparePartId = watch('sparePartId');
+  const dateStartValue = watch('dateStart');
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (initialSparePartId) {
+      setValue('sparePartId', initialSparePartId, { shouldDirty: true, shouldValidate: true });
+      return;
+    }
+
+    resetField('sparePartId');
+  }, [open, initialSparePartId, resetField, setValue]);
 
   function onSubmit(data: BorrowRequestInput) {
     createBorrow.mutate(data, {
@@ -159,7 +222,10 @@ function CreateBorrowDialog({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1">
             <Label>Spare Part *</Label>
-            <Select onValueChange={(v) => setValue('sparePartId', v)}>
+            <Select
+              value={selectedSparePartId ?? ''}
+              onValueChange={(v) => setValue('sparePartId', v, { shouldDirty: true })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="เลือกอุปกรณ์ที่ต้องการยืม" />
               </SelectTrigger>
@@ -214,7 +280,14 @@ function CreateBorrowDialog({
             </div>
             <div className="space-y-1">
               <Label>วันที่คาดว่าจะคืน</Label>
-              <Input type="datetime-local" {...register('expectedReturn')} />
+              <Input
+                type="datetime-local"
+                min={dateStartValue || undefined}
+                {...register('expectedReturn')}
+              />
+              {errors.expectedReturn && (
+                <p className="text-xs text-destructive">{errors.expectedReturn.message}</p>
+              )}
             </div>
           </div>
 
@@ -318,9 +391,11 @@ function ReturnDialog({
   onOpenChange: (v: boolean) => void;
   tx: BorrowTransaction | null;
 }) {
-  const [returnDate, setReturnDate] = useState(new Date().toISOString().slice(0, 16));
+  const [returnDate, setReturnDate] = useState(() => toDatetimeLocal(new Date().toISOString()));
   const [remark, setRemark] = useState('');
   const returnBorrow = useReturnBorrow();
+  const minReturnDate = tx?.dateStart ? toDatetimeLocal(tx.dateStart) : '';
+  const isReturnBeforeBorrow = Boolean(minReturnDate && returnDate && returnDate < minReturnDate);
 
   if (!tx) return null;
 
@@ -338,9 +413,13 @@ function ReturnDialog({
             <Label>วันที่คืน *</Label>
             <Input
               type="datetime-local"
+              min={minReturnDate || undefined}
               value={returnDate}
               onChange={(e) => setReturnDate(e.target.value)}
             />
+            {isReturnBeforeBorrow && (
+              <p className="text-xs text-destructive">วันที่คืนต้องไม่ก่อนวันที่ยืม</p>
+            )}
           </div>
           <div className="space-y-1">
             <Label>หมายเหตุ</Label>
@@ -362,12 +441,14 @@ function ReturnDialog({
           </Button>
           <Button
             onClick={() =>
-              returnBorrow.mutate(
-                { id: tx.id, actualReturn: new Date(returnDate).toISOString(), remark },
-                { onSuccess: () => onOpenChange(false) }
-              )
+              isReturnBeforeBorrow
+                ? toast.error('วันที่คืนต้องไม่ก่อนวันที่ยืม')
+                : returnBorrow.mutate(
+                    { id: tx.id, actualReturn: new Date(returnDate).toISOString(), remark },
+                    { onSuccess: () => onOpenChange(false) }
+                  )
             }
-            disabled={returnBorrow.isPending || !returnDate}
+            disabled={returnBorrow.isPending || !returnDate || isReturnBeforeBorrow}
           >
             {returnBorrow.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             ยืนยันคืน
@@ -402,10 +483,12 @@ function EditBorrowDialog({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<EditBorrowInput>({
     resolver: zodResolver(editBorrowSchema),
   });
+  const editDateStartValue = watch('dateStart');
 
   useEffect(() => {
     if (tx) {
@@ -467,7 +550,14 @@ function EditBorrowDialog({
             </div>
             <div className="space-y-1">
               <Label>วันที่คาดว่าจะคืน</Label>
-              <Input type="datetime-local" {...register('expectedReturn')} />
+              <Input
+                type="datetime-local"
+                min={editDateStartValue || undefined}
+                {...register('expectedReturn')}
+              />
+              {errors.expectedReturn && (
+                <p className="text-xs text-destructive">{errors.expectedReturn.message}</p>
+              )}
             </div>
           </div>
 
@@ -626,14 +716,24 @@ const LIMIT = 20;
 
 export function BorrowPage() {
   const { user } = useAuthStore();
-  const isManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const canManageBorrows = isAdminLikeRole(user?.role, user?.email);
   const qc = useQueryClient();
+  const [now, setNow] = useState(() => Date.now());
 
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [borrowAgainSparePartId, setBorrowAgainSparePartId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 60_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function handleExport() {
     setExporting(true);
@@ -653,6 +753,7 @@ export function BorrowPage() {
   const [cancelTarget, setCancelTarget] = useState<BorrowTransaction | null>(null);
   const [editTarget, setEditTarget] = useState<BorrowTransaction | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BorrowTransaction | null>(null);
+  const [detailTarget, setDetailTarget] = useState<BorrowTransaction | null>(null);
 
   const { data, isLoading } = useBorrows({ status: statusFilter, page, limit: LIMIT });
   const approve = useApproveBorrow();
@@ -662,6 +763,7 @@ export function BorrowPage() {
 
   const txs = data?.data ?? [];
   const meta = data?.meta;
+  const detailOverdueDays = detailTarget ? getOverdueDays(detailTarget.expectedReturn, now) : 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -669,7 +771,7 @@ export function BorrowPage() {
       <div className="flex items-center justify-between border-b bg-white px-6 py-4">
         <h1 className="text-xl font-bold">ยืม / คืน</h1>
         <div className="flex items-center gap-2">
-          {isManager && (
+          {canManageBorrows && (
             <>
               <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                 <Upload className="mr-1 h-4 w-4" /> Import
@@ -685,7 +787,13 @@ export function BorrowPage() {
             </>
           )}
           {user?.role !== 'VIEWER' && (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setBorrowAgainSparePartId(null);
+                setCreateOpen(true);
+              }}
+            >
               <Plus className="mr-1 h-4 w-4" /> ขอยืม
             </Button>
           )}
@@ -746,21 +854,37 @@ export function BorrowPage() {
               </TableRow>
             ) : (
               txs.map((tx) => {
-                const canApproveReject = isManager && tx.status === 'PENDING';
+                const canApproveReject = canManageBorrows && tx.status === 'PENDING';
                 const canReturn =
-                  tx.status === 'APPROVED' && (isManager || tx.borrower.id === user?.id);
+                  tx.status === 'APPROVED' && (canManageBorrows || tx.borrower.id === user?.id);
                 const canCancel =
-                  tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
-                const canEdit =
-                  tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
+                  tx.status === 'PENDING' && (canManageBorrows || tx.borrower.id === user?.id);
+                const canEdit = tx.status === 'PENDING' && tx.borrower.id === user?.id;
                 const canDelete =
-                  tx.status === 'PENDING' && (isManager || tx.borrower.id === user?.id);
+                  isSuperAdminRole(user?.role, user?.email) ||
+                  (tx.status === 'PENDING' && canManageBorrows);
+                const canBorrowAgain = user?.role !== 'VIEWER' && tx.status === 'REJECTED';
+                const overdueDays = getOverdueDays(tx.expectedReturn, now);
+                const isOverdue = tx.status === 'APPROVED' && overdueDays > 0;
 
                 const displayName = tx.borrowerName ?? tx.borrower.name;
                 const displayEmail = tx.borrowerEmail || null;
 
                 return (
-                  <TableRow key={tx.id} className="group">
+                  <TableRow
+                    key={tx.id}
+                    className="group cursor-pointer"
+                    title="คลิกเพื่อดูรายละเอียด"
+                    onClick={() => setDetailTarget(tx)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setDetailTarget(tx);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                  >
                     <TableCell>
                       <p className="font-mono text-xs font-medium">{tx.sparePart.modelCode}</p>
                       <p className="max-w-[150px] truncate text-xs text-muted-foreground">
@@ -782,7 +906,17 @@ export function BorrowPage() {
                     <TableCell className="text-xs">{fmtDate(tx.dateStart)}</TableCell>
                     <TableCell className="text-xs">{fmtDate(tx.expectedReturn)}</TableCell>
                     <TableCell>
-                      <StatusBadge status={tx.status} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={tx.status} />
+                        {isOverdue && (
+                          <Badge
+                            variant="destructive"
+                            className="whitespace-nowrap px-2 py-0.5 text-[11px] leading-none"
+                          >
+                            ล่าช้า {overdueDays} วัน
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm">
                       {tx.approver ? (
@@ -799,7 +933,34 @@ export function BorrowPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex justify-end gap-1">
+                      <div className="ml-auto grid w-fit grid-cols-3 gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-slate-600 hover:text-slate-900"
+                          title="ดูรายละเอียด"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailTarget(tx);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {canBorrowAgain && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-blue-600 hover:text-blue-700"
+                            title="ขอยืมอีกครั้ง"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBorrowAgainSparePartId(tx.sparePart.id);
+                              setCreateOpen(true);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        )}
                         {canApproveReject && (
                           <>
                             <Button
@@ -807,7 +968,10 @@ export function BorrowPage() {
                               variant="ghost"
                               className="h-7 w-7 text-green-600 hover:text-green-700"
                               title="อนุมัติ"
-                              onClick={() => setApproveTarget(tx)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setApproveTarget(tx);
+                              }}
                             >
                               <CheckCircle className="h-4 w-4" />
                             </Button>
@@ -816,7 +980,10 @@ export function BorrowPage() {
                               variant="ghost"
                               className="h-7 w-7 text-destructive hover:text-destructive"
                               title="ปฏิเสธ"
-                              onClick={() => setRejectTarget(tx)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRejectTarget(tx);
+                              }}
                             >
                               <XCircle className="h-4 w-4" />
                             </Button>
@@ -828,7 +995,10 @@ export function BorrowPage() {
                             variant="ghost"
                             className="h-7 w-7 text-blue-600 hover:text-blue-700"
                             title="คืนของ"
-                            onClick={() => setReturnTarget(tx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReturnTarget(tx);
+                            }}
                           >
                             <RotateCcw className="h-4 w-4" />
                           </Button>
@@ -839,7 +1009,10 @@ export function BorrowPage() {
                             variant="ghost"
                             className="h-7 w-7 text-muted-foreground hover:text-destructive"
                             title="ยกเลิก"
-                            onClick={() => setCancelTarget(tx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCancelTarget(tx);
+                            }}
                           >
                             <Ban className="h-4 w-4" />
                           </Button>
@@ -850,7 +1023,10 @@ export function BorrowPage() {
                             variant="ghost"
                             className="h-7 w-7 text-blue-500 hover:text-blue-700"
                             title="แก้ไข"
-                            onClick={() => setEditTarget(tx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditTarget(tx);
+                            }}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -861,7 +1037,10 @@ export function BorrowPage() {
                             variant="ghost"
                             className="h-7 w-7 text-destructive hover:text-destructive"
                             title="ลบ"
-                            onClick={() => setDeleteTarget(tx)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(tx);
+                            }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -918,6 +1097,139 @@ export function BorrowPage() {
         onOpenChange={setImportOpen}
         onSuccess={() => qc.invalidateQueries({ queryKey: BORROW_KEY })}
       />
+
+      {/* Detail dialog */}
+      <Dialog open={!!detailTarget} onOpenChange={(v) => !v && setDetailTarget(null)}>
+        <DialogContent className="max-h-[85vh] sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4" /> รายละเอียดการยืม
+            </DialogTitle>
+            {detailTarget && (
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="px-2 py-0.5 font-mono text-[11px]">
+                  {detailTarget.sparePart.modelCode}
+                </Badge>
+                <Badge variant="secondary" className="px-2 py-0.5 text-[11px]">
+                  {detailTarget.sparePart.site.code}
+                </Badge>
+                {detailTarget.status === 'APPROVED' && detailOverdueDays > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="whitespace-nowrap px-2 py-0.5 text-[11px] leading-none"
+                  >
+                    ล่าช้า {detailOverdueDays} วัน
+                  </Badge>
+                )}
+              </div>
+            )}
+          </DialogHeader>
+
+          {detailTarget && (
+            <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
+              <div className="overflow-hidden rounded-xl border bg-muted/20">
+                <div className="border-b px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  รูปภาพอุปกรณ์
+                </div>
+                {detailTarget.sparePart.imageUrl ? (
+                  <img
+                    src={detailTarget.sparePart.imageUrl}
+                    alt={detailTarget.sparePart.productName}
+                    className="h-56 w-full bg-background object-contain p-3"
+                  />
+                ) : (
+                  <div className="flex h-56 items-center justify-center px-3 text-sm text-muted-foreground">
+                    ไม่มีรูปภาพสำหรับอุปกรณ์นี้
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <DetailField
+                  label="อุปกรณ์"
+                  value={
+                    <>
+                      <p className="font-medium text-foreground">
+                        {detailTarget.sparePart.modelCode}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {detailTarget.sparePart.productName}
+                      </p>
+                    </>
+                  }
+                />
+                <DetailField
+                  label="Serial Number"
+                  value={detailTarget.sparePart.serialNumber ?? '—'}
+                />
+                <DetailField
+                  label="Material Code"
+                  value={detailTarget.sparePart.materialCode ?? '—'}
+                />
+                <DetailField
+                  label="สถานะ"
+                  value={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={detailTarget.status} />
+                      {detailTarget.status === 'APPROVED' && detailOverdueDays > 0 && (
+                        <Badge
+                          variant="destructive"
+                          className="whitespace-nowrap px-2 py-0.5 text-[11px] leading-none"
+                        >
+                          ล่าช้า {detailOverdueDays} วัน
+                        </Badge>
+                      )}
+                    </div>
+                  }
+                />
+                <CreateBorrowDialog
+                  open={createOpen}
+                  onOpenChange={(v) => {
+                    setCreateOpen(v);
+                    if (!v) setBorrowAgainSparePartId(null);
+                  }}
+                  initialSparePartId={borrowAgainSparePartId}
+                />
+                <DetailField
+                  label="ผู้ยืม"
+                  value={detailTarget.borrowerName ?? detailTarget.borrower.name}
+                />
+                <DetailField
+                  label="Email"
+                  value={detailTarget.borrowerEmail || detailTarget.borrower.email || '—'}
+                />
+                <DetailField label="Project" value={detailTarget.project ?? '—'} />
+                <DetailField label="วันที่เริ่มยืม" value={fmtDateTime(detailTarget.dateStart)} />
+                <DetailField
+                  label="วันที่คาดว่าจะคืน"
+                  value={fmtDateTime(detailTarget.expectedReturn)}
+                />
+                <DetailField label="วันที่คืนจริง" value={fmtDateTime(detailTarget.actualReturn)} />
+                <DetailField label="ผู้อนุมัติ" value={detailTarget.approver?.name ?? '—'} />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <DetailField
+                  label="หมายเหตุผู้ยืม"
+                  value={
+                    <p className="whitespace-pre-wrap break-words text-sm leading-snug text-foreground">
+                      {detailTarget.borrowerRemark ?? '—'}
+                    </p>
+                  }
+                />
+                <DetailField
+                  label="หมายเหตุผู้อนุมัติ"
+                  value={
+                    <p className="whitespace-pre-wrap break-words text-sm leading-snug text-foreground">
+                      {detailTarget.approverRemark ?? '—'}
+                    </p>
+                  }
+                />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Approve dialog */}
       <RemarkDialog

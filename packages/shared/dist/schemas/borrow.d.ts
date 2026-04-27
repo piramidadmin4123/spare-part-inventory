@@ -1,18 +1,38 @@
 import { z } from 'zod';
-export declare const borrowRequestSchema: z.ZodObject<
-  {
-    sparePartId: z.ZodString;
-    borrowerName: z.ZodString;
-    borrowerEmail: z.ZodString;
-    project: z.ZodOptional<z.ZodString>;
-    dateStart: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
-    expectedReturn: z.ZodOptional<
-      z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>
-    >;
-    borrowerRemark: z.ZodOptional<z.ZodString>;
-  },
-  'strip',
-  z.ZodTypeAny,
+export declare const borrowRequestSchema: z.ZodEffects<
+  z.ZodObject<
+    {
+      sparePartId: z.ZodString;
+      borrowerName: z.ZodString;
+      borrowerEmail: z.ZodString;
+      project: z.ZodOptional<z.ZodString>;
+      dateStart: z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>;
+      expectedReturn: z.ZodOptional<
+        z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>
+      >;
+      borrowerRemark: z.ZodOptional<z.ZodString>;
+    },
+    'strip',
+    z.ZodTypeAny,
+    {
+      sparePartId: string;
+      borrowerName: string;
+      borrowerEmail: string;
+      dateStart: string;
+      project?: string | undefined;
+      expectedReturn?: string | undefined;
+      borrowerRemark?: string | undefined;
+    },
+    {
+      sparePartId: string;
+      borrowerName: string;
+      borrowerEmail: string;
+      dateStart: string;
+      project?: string | undefined;
+      expectedReturn?: string | undefined;
+      borrowerRemark?: string | undefined;
+    }
+  >,
   {
     sparePartId: string;
     borrowerName: string;
@@ -88,21 +108,39 @@ export declare const cancelSchema: z.ZodObject<
     borrowerRemark?: string | undefined;
   }
 >;
-export declare const editBorrowSchema: z.ZodObject<
-  {
-    borrowerName: z.ZodOptional<z.ZodString>;
-    borrowerEmail: z.ZodOptional<z.ZodString>;
-    project: z.ZodNullable<z.ZodOptional<z.ZodString>>;
-    dateStart: z.ZodOptional<
-      z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>
-    >;
-    expectedReturn: z.ZodOptional<
-      z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>
-    >;
-    borrowerRemark: z.ZodNullable<z.ZodOptional<z.ZodString>>;
-  },
-  'strip',
-  z.ZodTypeAny,
+export declare const editBorrowSchema: z.ZodEffects<
+  z.ZodObject<
+    {
+      borrowerName: z.ZodOptional<z.ZodString>;
+      borrowerEmail: z.ZodOptional<z.ZodString>;
+      project: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+      dateStart: z.ZodOptional<
+        z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>
+      >;
+      expectedReturn: z.ZodOptional<
+        z.ZodEffects<z.ZodEffects<z.ZodString, string, string>, string, string>
+      >;
+      borrowerRemark: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    },
+    'strip',
+    z.ZodTypeAny,
+    {
+      borrowerName?: string | undefined;
+      borrowerEmail?: string | undefined;
+      project?: string | null | undefined;
+      dateStart?: string | undefined;
+      expectedReturn?: string | undefined;
+      borrowerRemark?: string | null | undefined;
+    },
+    {
+      borrowerName?: string | undefined;
+      borrowerEmail?: string | undefined;
+      project?: string | null | undefined;
+      dateStart?: string | undefined;
+      expectedReturn?: string | undefined;
+      borrowerRemark?: string | null | undefined;
+    }
+  >,
   {
     borrowerName?: string | undefined;
     borrowerEmail?: string | undefined;

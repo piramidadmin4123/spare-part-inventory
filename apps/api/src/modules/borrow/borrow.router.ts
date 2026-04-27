@@ -18,10 +18,16 @@ import {
   notifyBorrowRejected,
   notifyBorrowReturned,
 } from '../../lib/notify.js';
+import { isSuperAdminRole } from '../../lib/roles.js';
+import { recordAuditLog } from '../../lib/audit.js';
 
 export const borrowRouter: IRouter = Router();
 
 borrowRouter.use(requireAuth);
+
+function isBefore(left: Date | null | undefined, right: Date | null | undefined): boolean {
+  return Boolean(left && right && left.getTime() < right.getTime());
+}
 
 const borrowInclude = {
   sparePart: { include: { site: true, equipmentType: true, brand: true } },
@@ -136,12 +142,25 @@ borrowRouter.patch('/:id', async (req, res, next) => {
       throw new AppError(409, 'CONFLICT', 'Only PENDING requests can be edited');
 
     const user = req.user!;
-    if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
+    if (tx.borrowerId !== user.id)
       throw new AppError(403, 'FORBIDDEN', 'You can only edit your own requests');
 
     const parsed = editBorrowSchema.safeParse(req.body);
     if (!parsed.success)
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid input', parsed.error.issues);
+
+    const nextDateStart =
+      parsed.data.dateStart !== undefined ? new Date(parsed.data.dateStart) : tx.dateStart;
+    const nextExpectedReturn =
+      parsed.data.expectedReturn !== undefined
+        ? new Date(parsed.data.expectedReturn)
+        : tx.expectedReturn;
+
+    if (isBefore(nextExpectedReturn, nextDateStart)) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'วันที่คาดว่าจะคืนต้องไม่ก่อนวันที่เริ่มยืม', [
+        { path: 'expectedReturn', message: 'วันที่คาดว่าจะคืนต้องไม่ก่อนวันที่เริ่มยืม' },
+      ]);
+    }
 
     const updated = await prisma.borrowTransaction.update({
       where: { id },
@@ -170,20 +189,50 @@ borrowRouter.patch('/:id', async (req, res, next) => {
   }
 });
 
-// DELETE /api/borrow/:id — PENDING only
-borrowRouter.delete('/:id', async (req, res, next) => {
+// DELETE /api/borrow/:id — ADMIN, MANAGER, SUPER_ADMIN
+borrowRouter.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    const tx = await prisma.borrowTransaction.findUnique({ where: { id } });
+    const tx = await prisma.borrowTransaction.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        sparePartId: true,
+        borrowerId: true,
+        approverId: true,
+        borrowerRemark: true,
+        approverRemark: true,
+      },
+    });
     if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
-    if (tx.status !== 'PENDING')
+    const canForceDelete = isSuperAdminRole(req.user?.role);
+
+    if (tx.status !== 'PENDING' && !canForceDelete)
       throw new AppError(409, 'CONFLICT', 'Only PENDING requests can be deleted');
 
-    const user = req.user!;
-    if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
-      throw new AppError(403, 'FORBIDDEN', 'You can only delete your own requests');
+    if (tx.status === 'APPROVED') {
+      await prisma.$transaction([
+        prisma.sparePart.update({
+          where: { id: tx.sparePartId },
+          data: { status: 'IN_STOCK', quantity: { increment: 1 } },
+        }),
+        prisma.borrowTransaction.delete({ where: { id } }),
+      ]);
+    } else {
+      await prisma.borrowTransaction.delete({ where: { id } });
+    }
 
-    await prisma.borrowTransaction.delete({ where: { id } });
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'DELETE',
+      entityType: 'BorrowTransaction',
+      entityId: tx.id,
+      oldValue: tx,
+      newValue: null,
+      ipAddress: req.ip,
+    }).catch(() => {});
+
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -225,6 +274,16 @@ borrowRouter.patch('/:id/approve', requireRole('ADMIN', 'MANAGER'), async (req, 
       }),
     ]);
 
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'APPROVE',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: { status: tx.status, sparePartId: tx.sparePartId },
+      newValue: { status: updated.status, sparePartId: updated.sparePart.id },
+      ipAddress: req.ip,
+    }).catch(() => {});
+
     res.json(updated);
 
     notifyBorrowApproved({
@@ -265,6 +324,16 @@ borrowRouter.patch('/:id/reject', requireRole('ADMIN', 'MANAGER'), async (req, r
       include: borrowInclude,
     });
 
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'REJECT',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: { status: tx.status, sparePartId: tx.sparePartId },
+      newValue: { status: updated.status, sparePartId: updated.sparePart.id },
+      ipAddress: req.ip,
+    }).catch(() => {});
+
     res.json(updated);
 
     notifyBorrowRejected({
@@ -283,6 +352,64 @@ borrowRouter.patch('/:id/reject', requireRole('ADMIN', 'MANAGER'), async (req, r
   }
 });
 
+// PATCH /api/borrow/:id/restore — ADMIN, MANAGER
+borrowRouter.patch('/:id/restore', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
+  try {
+    const id = req.params.id as string;
+
+    const tx = await prisma.borrowTransaction.findUnique({ where: { id } });
+    if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
+    if (tx.status !== 'REJECTED')
+      throw new AppError(
+        409,
+        'CONFLICT',
+        `Cannot restore a transaction with status "${tx.status}"`
+      );
+
+    const active = await prisma.borrowTransaction.findFirst({
+      where: {
+        id: { not: id },
+        sparePartId: tx.sparePartId,
+        status: { in: ['PENDING', 'APPROVED'] },
+      },
+    });
+    if (active)
+      throw new AppError(409, 'CONFLICT', 'This item already has an active borrow request');
+
+    const updated = await prisma.borrowTransaction.update({
+      where: { id },
+      data: {
+        status: 'PENDING',
+        approverId: null,
+        approverRemark: null,
+      },
+      include: borrowInclude,
+    });
+
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'RESTORE',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: {
+        status: tx.status,
+        approverId: tx.approverId,
+        approverRemark: tx.approverRemark,
+      },
+      newValue: {
+        status: updated.status,
+        approverId: updated.approverId,
+        approverRemark: updated.approverRemark,
+      },
+      ipAddress: req.ip,
+    }).catch(() => {});
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PATCH /api/borrow/:id/return
 borrowRouter.patch('/:id/return', async (req, res, next) => {
   try {
@@ -296,6 +423,23 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
     if (tx.status !== 'APPROVED')
       throw new AppError(409, 'CONFLICT', `Cannot return a transaction with status "${tx.status}"`);
 
+    const actualReturn = new Date(parsed.data.actualReturn);
+    if (tx.dateStart && actualReturn < tx.dateStart) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'วันที่คืนต้องไม่ก่อนวันที่ยืม', [
+        { path: 'actualReturn', message: 'วันที่คืนต้องไม่ก่อนวันที่ยืม' },
+      ]);
+    }
+
+    const overdueDays =
+      tx.expectedReturn && actualReturn > tx.expectedReturn
+        ? Math.max(
+            1,
+            Math.ceil(
+              (actualReturn.getTime() - tx.expectedReturn.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          )
+        : 0;
+
     // only borrower or manager/admin can return
     const user = req.user!;
     if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
@@ -306,7 +450,7 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
         where: { id },
         data: {
           status: 'RETURNED',
-          actualReturn: new Date(parsed.data.actualReturn),
+          actualReturn,
           borrowerRemark: parsed.data.borrowerRemark ?? tx.borrowerRemark,
         },
         include: borrowInclude,
@@ -316,6 +460,24 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
         data: { status: 'IN_STOCK', quantity: { increment: 1 } },
       }),
     ]);
+
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'RETURN',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: {
+        status: tx.status,
+        actualReturn: tx.actualReturn,
+        expectedReturn: tx.expectedReturn,
+      },
+      newValue: {
+        status: updated.status,
+        actualReturn: updated.actualReturn,
+        expectedReturn: updated.expectedReturn,
+      },
+      ipAddress: req.ip,
+    }).catch(() => {});
 
     res.json(updated);
 
@@ -327,6 +489,7 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
       borrowerName: updated.borrowerName ?? updated.borrower.name,
       borrowerEmail: updated.borrowerEmail ?? updated.borrower.email,
       project: updated.project,
+      overdueDays,
     }).catch(() => {});
   } catch (err) {
     next(err);
@@ -358,6 +521,16 @@ borrowRouter.patch('/:id/cancel', async (req, res, next) => {
       },
       include: borrowInclude,
     });
+
+    await recordAuditLog({
+      userId: req.user!.id,
+      action: 'CANCEL',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: { status: tx.status, borrowerRemark: tx.borrowerRemark },
+      newValue: { status: updated.status, borrowerRemark: updated.borrowerRemark },
+      ipAddress: req.ip,
+    }).catch(() => {});
 
     res.json(updated);
   } catch (err) {

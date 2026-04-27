@@ -95,6 +95,14 @@ async function resolveBrand(brandName: string | undefined) {
   return brand;
 }
 
+function normalizeImageData(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 function toDecimal(v: unknown) {
   if (v == null || v === '') return null;
   const n = Number(v);
@@ -118,6 +126,7 @@ additionalOrdersRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, re
       totalCost,
       status = 'PENDING',
       remark,
+      imageData,
     } = req.body as Record<string, unknown>;
 
     if (!productName || String(productName).trim() === '')
@@ -126,6 +135,7 @@ additionalOrdersRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, re
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid status');
 
     const brand = await resolveBrand(brandName as string | undefined);
+    const normalizedImageData = normalizeImageData(imageData);
 
     const order = await prisma.additionalOrder.create({
       data: {
@@ -139,6 +149,7 @@ additionalOrdersRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, re
         totalCost: toDecimal(totalCost),
         status: (status as OrderStatus) ?? 'PENDING',
         remark: String(remark ?? '').trim() || null,
+        ...(normalizedImageData !== undefined && { imageData: normalizedImageData }),
       },
       select: {
         id: true,
@@ -158,7 +169,7 @@ additionalOrdersRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, re
         brand: { select: { id: true, name: true } },
       },
     });
-    res.status(201).json({ ...order, hasImage: false });
+    res.status(201).json({ ...order, hasImage: !!normalizedImageData });
   } catch (err) {
     next(err);
   }
@@ -178,12 +189,14 @@ additionalOrdersRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req
       totalCost,
       status,
       remark,
+      imageData: imageDataInput,
     } = req.body as Record<string, unknown>;
 
     if (status && !VALID_STATUSES.includes(status as OrderStatus))
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid status');
 
     const brand = brandName !== undefined ? await resolveBrand(brandName as string) : undefined;
+    const normalizedImageData = normalizeImageData(imageDataInput);
 
     const order = await prisma.additionalOrder.update({
       where: { id: String(req.params.id) },
@@ -198,6 +211,7 @@ additionalOrdersRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req
         ...(totalCost !== undefined && { totalCost: toDecimal(totalCost) }),
         ...(status != null && status !== '' && { status: status as OrderStatus }),
         ...(remark !== undefined && { remark: String(remark).trim() || null }),
+        ...(normalizedImageData !== undefined && { imageData: normalizedImageData }),
       },
       select: {
         id: true,

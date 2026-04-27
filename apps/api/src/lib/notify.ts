@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { prisma } from './prisma.js';
+import { SUPER_ADMIN_EMAILS } from './roles.js';
 
 // ── Config ─────────────────────────────────────────────────────────────────
 
@@ -14,10 +15,16 @@ const EXTRA_NOTIFY_EMAILS = (process.env.NOTIFY_EMAILS ?? '')
   .map((e) => e.trim())
   .filter(Boolean);
 const APP_URL = process.env.APP_URL ?? 'http://localhost:5173';
+const BORROW_PAGE_URL = 'https://spare-part-inventory-web.vercel.app/borrow';
 
 async function getAdminEmails(): Promise<string[]> {
   const users = await prisma.user.findMany({
-    where: { role: { in: ['ADMIN', 'MANAGER'] } },
+    where: {
+      OR: [
+        { role: { in: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] } },
+        { email: { in: [...SUPER_ADMIN_EMAILS] } },
+      ],
+    },
     select: { email: true },
   });
   const dbEmails = users.map((u) => u.email).filter(Boolean) as string[];
@@ -159,7 +166,7 @@ export async function notifyNewBorrow(info: BorrowInfo) {
       title: '📋 คำขอยืมใหม่ รออนุมัติ',
       text: `**${info.borrowerName}** ขอยืม **${info.modelCode}**`,
       facts,
-      actionUrl: `${APP_URL}/borrow`,
+      actionUrl: BORROW_PAGE_URL,
       actionLabel: 'อนุมัติ / ปฏิเสธ',
       themeColor: 'F59E0B',
     }),
@@ -169,7 +176,7 @@ export async function notifyNewBorrow(info: BorrowInfo) {
         subject: `[รออนุมัติ] คำขอยืม ${info.modelCode} — ${info.borrowerName}`,
         title: 'มีคำขอยืม Spare Part ใหม่',
         rows: facts.map((f) => ({ label: f.name, value: f.value })),
-        bodyText: 'กรุณาเข้าระบบเพื่ออนุมัติหรือปฏิเสธคำขอ',
+        bodyText: `กรุณาเข้าระบบเพื่ออนุมัติหรือปฏิเสธคำขอ<br/><a href="${BORROW_PAGE_URL}" target="_blank" rel="noreferrer" style="display:inline-block;margin-top:10px;padding:10px 14px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">ไปหน้า ยืม / คืน</a>`,
       }),
   ]);
 }
@@ -207,7 +214,6 @@ export async function notifyBorrowApproved(info: BorrowInfo & { approverName: st
 export async function notifyBorrowRejected(
   info: BorrowInfo & { approverName: string; reason?: string }
 ) {
-  const adminEmails = await getAdminEmails();
   const facts = [
     { name: 'อุปกรณ์', value: `${info.modelCode} — ${info.productName}` },
     { name: 'Site', value: info.siteCode },
@@ -215,9 +221,7 @@ export async function notifyBorrowRejected(
     ...(info.reason ? [{ name: 'เหตุผล', value: info.reason }] : []),
   ];
 
-  const emailTargets = [...(info.borrowerEmail ? [info.borrowerEmail] : []), ...adminEmails].filter(
-    (v, i, a) => a.indexOf(v) === i
-  );
+  const emailTargets = info.borrowerEmail ? [info.borrowerEmail] : [];
 
   await Promise.all([
     sendTeams({
@@ -236,13 +240,23 @@ export async function notifyBorrowRejected(
   ]);
 }
 
-export async function notifyBorrowReturned(info: BorrowInfo & { approverName?: string }) {
+export async function notifyBorrowReturned(
+  info: BorrowInfo & { approverName?: string; overdueDays?: number }
+) {
   const adminEmails = await getAdminEmails();
   const facts = [
     { name: 'อุปกรณ์', value: `${info.modelCode} — ${info.productName}` },
     { name: 'Site', value: info.siteCode },
     { name: 'ผู้คืน', value: info.borrowerName },
+    ...(info.overdueDays && info.overdueDays > 0
+      ? [{ name: 'สถานะการคืน', value: `ล่าช้า ${info.overdueDays} วัน` }]
+      : []),
   ];
+
+  const subject =
+    info.overdueDays && info.overdueDays > 0
+      ? `[คืนแล้ว | ล่าช้า ${info.overdueDays} วัน] ${info.modelCode} — ${info.borrowerName}`
+      : `[คืนแล้ว] ${info.modelCode} — ${info.borrowerName}`;
 
   await Promise.all([
     sendTeams({
@@ -254,9 +268,12 @@ export async function notifyBorrowReturned(info: BorrowInfo & { approverName?: s
     adminEmails.length > 0 &&
       sendEmail({
         to: adminEmails,
-        subject: `[คืนแล้ว] ${info.modelCode} — ${info.borrowerName}`,
+        subject,
         title: 'อุปกรณ์ถูกคืนเข้าระบบแล้ว',
         rows: facts.map((f) => ({ label: f.name, value: f.value })),
+        ...(info.overdueDays && info.overdueDays > 0
+          ? { bodyText: `รายการนี้ถูกคืนล่าช้า <strong>${info.overdueDays}</strong> วัน` }
+          : {}),
       }),
   ]);
 }
@@ -299,7 +316,7 @@ export async function notifyDueReturn(
           title: '⏰ แจ้งเตือน: ใกล้ถึงกำหนดคืนอุปกรณ์',
           text: `**${item.borrowerName}** กรุณาคืน **${item.modelCode}** ภายในวันพรุ่งนี้`,
           facts,
-          actionUrl: `${APP_URL}/borrow`,
+          actionUrl: BORROW_PAGE_URL,
           actionLabel: 'ดูรายการยืม',
           themeColor: 'F59E0B',
         }),

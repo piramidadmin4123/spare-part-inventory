@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'MANAGER' | 'TECHNICIAN' | 'VIEWER';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'TECHNICIAN' | 'VIEWER';
 export type ItemStatus =
   | 'IN_SERVICE'
   | 'BORROWED'
@@ -36,6 +36,17 @@ export interface User {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+export interface AuditLog {
+  id: string;
+  user?: Pick<User, 'id' | 'name' | 'email' | 'role'> | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  oldValue?: unknown;
+  newValue?: unknown;
+  ipAddress?: string | null;
+  createdAt: string;
 }
 export interface Site {
   id: string;
@@ -80,7 +91,10 @@ export interface SparePart {
 }
 export interface BorrowTransaction {
   id: string;
-  sparePart: Pick<SparePart, 'id' | 'modelCode' | 'productName'> & {
+  sparePart: Pick<
+    SparePart,
+    'id' | 'materialCode' | 'modelCode' | 'productName' | 'serialNumber' | 'imageUrl'
+  > & {
     site: Pick<Site, 'id' | 'code' | 'name'>;
     equipmentType: Pick<EquipmentType, 'id' | 'code'>;
     brand: Pick<Brand, 'id' | 'name'>;

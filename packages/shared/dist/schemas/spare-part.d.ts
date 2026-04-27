@@ -19,6 +19,7 @@ export declare const createSparePartSchema: z.ZodObject<
     >;
     location: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     remark: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    imageUrl: z.ZodNullable<z.ZodOptional<z.ZodString>>;
   },
   'strip',
   z.ZodTypeAny,
@@ -37,6 +38,7 @@ export declare const createSparePartSchema: z.ZodObject<
     cost?: number | null | undefined;
     location?: string | null | undefined;
     remark?: string | null | undefined;
+    imageUrl?: string | null | undefined;
   },
   {
     status: 'IN_SERVICE' | 'BORROWED' | 'IN_STOCK' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED';
@@ -53,6 +55,7 @@ export declare const createSparePartSchema: z.ZodObject<
     cost?: number | null | undefined;
     location?: string | null | undefined;
     remark?: string | null | undefined;
+    imageUrl?: string | null | undefined;
   }
 >;
 export type CreateSparePartInput = z.infer<typeof createSparePartSchema>;
@@ -78,6 +81,7 @@ export declare const updateSparePartSchema: z.ZodObject<
     >;
     location: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
     remark: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    imageUrl: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
   },
   'strip',
   z.ZodTypeAny,
@@ -103,6 +107,7 @@ export declare const updateSparePartSchema: z.ZodObject<
     cost?: number | null | undefined;
     location?: string | null | undefined;
     remark?: string | null | undefined;
+    imageUrl?: string | null | undefined;
   },
   {
     status?:
@@ -126,6 +131,7 @@ export declare const updateSparePartSchema: z.ZodObject<
     cost?: number | null | undefined;
     location?: string | null | undefined;
     remark?: string | null | undefined;
+    imageUrl?: string | null | undefined;
   }
 >;
 export type UpdateSparePartInput = z.infer<typeof updateSparePartSchema>;

@@ -211,6 +211,41 @@
 3. `SparePart.status = 'IN_STOCK'` (หรือ quantity += 1)
 4. Create `AuditLog` entry
 
+### PATCH /api/borrow/:id/restore (Manager)
+
+**Description:**
+
+- คืนสถานะคำขอที่ถูกปฏิเสธกลับไปเป็น `PENDING`
+
+**Side effects:**
+
+1. `BorrowTransaction.status = 'PENDING'`
+2. `BorrowTransaction.approverId = null`
+3. `BorrowTransaction.approverRemark = null`
+4. `SparePart.status` และ stock ไม่เปลี่ยน
+
+### Overdue Use Case (Borrow / Return page)
+
+**Actor:** Borrower / Manager
+
+**Preconditions:**
+
+- `status = "APPROVED"`
+- `expectedReturn` มีค่า
+- current datetime มากกว่า `expectedReturn`
+
+**Main flow:**
+
+1. ผู้ใช้เปิดหน้า `ยืม / คืน`
+2. ระบบเปรียบเทียบ current datetime กับ `expectedReturn`
+3. ถ้าเลยกำหนด ระบบแสดง tag สีแดง `เกินกำหนด` ข้างสถานะ
+4. รายการยังสามารถกดคืนได้ตามสิทธิ์ปกติ
+
+**Result:**
+
+- ไม่มีการเปลี่ยนสถานะในฐานข้อมูลเพียงเพราะ overdue
+- overdue เป็นสถานะที่คำนวณจากเวลาแบบ dynamic ตอนแสดงผล
+
 ---
 
 ## Dashboard Summary
@@ -226,6 +261,8 @@
   "needItems": 60,
   "activeBorrows": 33,
   "pendingApprovals": 5,
+  "overdueItems": 8,
+  "overdueBorrowers": 4,
   "lowStockCount": 3,
 
   "byCategory": [

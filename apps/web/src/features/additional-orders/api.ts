@@ -44,6 +44,7 @@ export interface OrderPayload {
   totalCost?: number | null;
   status?: string;
   remark?: string;
+  imageData?: string;
 }
 
 export const additionalOrdersApi = {

@@ -14,6 +14,15 @@ excelRouter.use(requireAuth);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
+type ExcelImageExtension = 'jpeg' | 'png' | 'gif';
+
+type ExcelImageAsset = {
+  buffer: Buffer;
+  extension: ExcelImageExtension;
+};
+
+const excelImageCache = new Map<string, ExcelImageAsset | null>();
+
 // ── Status mapping ────────────────────────────────────────────────────────────
 function mapStatus(raw: unknown): ItemStatus {
   if (!raw) return 'IN_STOCK';
@@ -25,6 +34,37 @@ function mapStatus(raw: unknown): ItemStatus {
   if (s === 'decommissioned') return 'DECOMMISSIONED';
   // "In Service", "onsite", "service bkk", location strings → IN_SERVICE
   return 'IN_SERVICE';
+}
+
+function resolveExcelImageAsset(imageUrl?: string | null): ExcelImageAsset | null {
+  if (!imageUrl) return null;
+
+  const cached = excelImageCache.get(imageUrl);
+  if (cached !== undefined) return cached;
+
+  const match = /^data:(image\/[\w.+-]+);base64,(.*)$/i.exec(imageUrl.trim());
+  if (!match) {
+    excelImageCache.set(imageUrl, null);
+    return null;
+  }
+
+  const mime = match[1].toLowerCase();
+  let extension: ExcelImageExtension | null = null;
+  if (mime === 'image/png') extension = 'png';
+  else if (mime === 'image/jpeg' || mime === 'image/jpg') extension = 'jpeg';
+  else if (mime === 'image/gif') extension = 'gif';
+
+  if (!extension) {
+    excelImageCache.set(imageUrl, null);
+    return null;
+  }
+
+  const asset: ExcelImageAsset = {
+    buffer: Buffer.from(match[2], 'base64') as Buffer,
+    extension,
+  };
+  excelImageCache.set(imageUrl, asset);
+  return asset;
 }
 
 // ── POST /api/excel/import ────────────────────────────────────────────────────
@@ -177,6 +217,25 @@ excelRouter.post(
           return v;
         };
 
+        // Build row → base64 image map from sheet images
+        const rowImageMap = new Map<number, string>();
+        const wbMedia = (
+          wb as unknown as { model?: { media?: Array<{ buffer: Buffer; extension: string }> } }
+        ).model?.media;
+        if (wbMedia) {
+          for (const placement of ws.getImages()) {
+            const nativeRow = placement.range?.tl?.nativeRow;
+            if (nativeRow == null) continue;
+            const oneIndexedRow = nativeRow + 1;
+            const imgMedia = wbMedia[placement.imageId as unknown as number];
+            if (!imgMedia?.buffer) continue;
+            rowImageMap.set(
+              oneIndexedRow,
+              `data:image/${imgMedia.extension};base64,${imgMedia.buffer.toString('base64')}`
+            );
+          }
+        }
+
         for (let r = headerRow + 1; r <= ws.rowCount; r++) {
           const row = ws.getRow(r);
           // Read type/brand early so we can use them as productName fallback
@@ -220,6 +279,7 @@ excelRouter.post(
           const serialNumber = rawSerial || null;
           const macAddress = String(cv(row, colMap.macAddress) ?? '').trim() || null;
           const remark = rawRemark || null;
+          const imageUrl = rowImageMap.get(r) ?? undefined;
 
           try {
             // Upsert equipment type by code (default to "Unknown" if blank)
@@ -262,6 +322,7 @@ excelRouter.post(
                   serialNumber,
                   macAddress,
                   remark,
+                  ...(imageUrl && { imageUrl }),
                 },
               });
               partId = up.id;
@@ -281,6 +342,7 @@ excelRouter.post(
                   serialNumber,
                   macAddress,
                   remark,
+                  imageUrl,
                 },
               });
               partId = cr.id;
@@ -409,7 +471,6 @@ excelRouter.post(
             const nativeRow = placement.range?.tl?.nativeRow;
             if (nativeRow == null) continue;
             const oneIndexedRow = nativeRow + 1;
-            if (rowImageMap.has(oneIndexedRow)) continue;
             const imgMedia = wbMedia[placement.imageId as unknown as number];
             if (!imgMedia?.buffer) continue;
             rowImageMap.set(
@@ -554,13 +615,35 @@ excelRouter.get('/export', async (req, res, next) => {
 
     const fmtDate = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : '');
 
+    const workbookImageIdCache = new Map<string, number>();
+
+    function getImageId(imageUrl?: string | null) {
+      if (!imageUrl) return null;
+
+      const asset = resolveExcelImageAsset(imageUrl);
+      if (!asset) return null;
+
+      const cachedId = workbookImageIdCache.get(imageUrl);
+      if (cachedId !== undefined) return cachedId;
+
+      const imageId = wb.addImage({
+        buffer: asset.buffer,
+        extension: asset.extension,
+      } as any);
+      workbookImageIdCache.set(imageUrl, imageId);
+      return imageId;
+    }
+
     const buildSheet = (
       ws: ExcelJS.Worksheet,
       titleText: string,
       rows: typeof parts,
       withSite: boolean
     ) => {
-      const totalCols = withSite ? 17 : 16;
+      const imageCol = 2;
+      const totalCols = withSite ? 18 : 17;
+      const borrowStart = withSite ? 15 : 14;
+      const codeColIdx = withSite ? 7 : 6;
 
       // Rows 1-3: merged title
       for (let r = 1; r <= 3; r++) {
@@ -577,7 +660,6 @@ excelRouter.get('/export', async (req, res, next) => {
       ws.getRow(5).height = 19.5;
 
       // Row 6: "การยืมอุปกรณ์" label spanning borrow columns
-      const borrowStart = withSite ? 14 : 13;
       ws.mergeCells(6, borrowStart, 6, totalCols);
       const lblCell = ws.getCell(6, borrowStart);
       lblCell.value = 'การยืมอุปกรณ์';
@@ -588,6 +670,7 @@ excelRouter.get('/export', async (req, res, next) => {
       const headers = withSite
         ? [
             'No',
+            'Image',
             'Site',
             'Type',
             'Brand',
@@ -607,6 +690,7 @@ excelRouter.get('/export', async (req, res, next) => {
           ]
         : [
             'No',
+            'Image',
             'Type',
             'Brand',
             'Material Code',
@@ -626,8 +710,8 @@ excelRouter.get('/export', async (req, res, next) => {
 
       // Bold columns (1-indexed): No, [Site], Type, Brand, Mat Code, Code, PRODUCT NAME, Qty, Cost, Remark
       const boldSet = withSite
-        ? new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 13])
-        : new Set([1, 2, 3, 4, 5, 6, 7, 8, 12]);
+        ? new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14])
+        : new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 13]);
 
       const hRow = ws.getRow(7);
       hRow.height = 55.35;
@@ -644,24 +728,25 @@ excelRouter.get('/export', async (req, res, next) => {
       // Column widths
       const widths = withSite
         ? [
-            10.55, 18, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55, 27.44,
-            27.55, 15.55, 15.55, 30.55,
+            10.55, 14.5, 18, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55,
+            27.44, 27.55, 15.55, 15.55, 30.55,
           ]
         : [
-            10.55, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55, 27.44,
-            27.55, 15.55, 15.55, 30.55,
+            10.55, 14.5, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55,
+            27.44, 27.55, 15.55, 15.55, 30.55,
           ];
       widths.forEach((w, i) => {
         ws.getColumn(i + 1).width = w;
       });
 
       // Data rows (starting at row 8)
-      const codeColIdx = withSite ? 6 : 5;
       rows.forEach((p, idx) => {
         const activeBorrow = p.borrowTransactions[0] ?? null;
+        const imageId = getImageId(p.imageUrl);
         const values = withSite
           ? [
               idx + 1,
+              '',
               p.site.code,
               p.equipmentType.code,
               p.brand.name,
@@ -681,6 +766,7 @@ excelRouter.get('/export', async (req, res, next) => {
             ]
           : [
               idx + 1,
+              '',
               p.equipmentType.code,
               p.brand.name,
               p.materialCode ?? '',
@@ -708,6 +794,13 @@ excelRouter.get('/export', async (req, res, next) => {
           cell.alignment = { vertical: 'middle', wrapText: true };
           if (c === codeColIdx && v) cell.fill = CODE_FILL;
         });
+
+        if (imageId != null) {
+          ws.addImage(imageId, {
+            tl: { col: imageCol - 1 + 0.12, row: dRow.number - 1 + 0.08 },
+            ext: { width: 48, height: 48 },
+          });
+        }
       });
     };
 
