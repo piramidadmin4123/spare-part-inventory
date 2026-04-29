@@ -7,6 +7,7 @@ export interface ImportResult {
   ordersImported: number;
   borrowsImported: number;
   errors: string[];
+  warnings?: string[];
   sheetsProcessed: string[];
 }
 

@@ -13,9 +13,15 @@ import {
   Upload,
   Download,
   FileSpreadsheet,
+  AlertTriangle,
 } from 'lucide-react';
 import { createSparePartSchema, updateSparePartSchema } from '@spare-part/shared';
-import type { CreateSparePartInput, UpdateSparePartInput, SparePart } from '@spare-part/shared';
+import type {
+  CreateSparePartInput,
+  UpdateSparePartInput,
+  SparePart,
+  Site,
+} from '@spare-part/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -67,6 +73,10 @@ import type { SparePartFilters } from '@/features/inventory/api';
 import { excelApi } from '@/features/excel/api';
 import type { ImportResult } from '@/features/excel/api';
 import { toast } from 'sonner';
+type DuplicateSiteInfo = Pick<Site, 'id' | 'code' | 'name'>;
+type InventorySparePart = SparePart & {
+  duplicateSites?: DuplicateSiteInfo[];
+};
 
 // ── Status config ──────────────────────────────────────────────────────────
 
@@ -92,6 +102,22 @@ function StatusBadge({ status }: { status: string }) {
     DECOMMISSIONED: 'secondary',
   };
   return <Badge variant={variantMap[status] ?? 'secondary'}>{cfg?.label ?? status}</Badge>;
+}
+
+function DuplicateSerialBadge({ sites }: { sites: DuplicateSiteInfo[] }) {
+  const siteLabel = sites.map((site) => site.code).join(', ');
+  const siteTooltip = sites.map((site) => `${site.code} — ${site.name}`).join(', ');
+
+  return (
+    <Badge
+      variant="secondary"
+      className="mt-1 gap-1 border-amber-200 bg-amber-50 text-amber-700"
+      title={siteTooltip}
+    >
+      <AlertTriangle className="h-3 w-3" />
+      ซ้ำกับ {siteLabel}
+    </Badge>
+  );
 }
 
 function SparePartThumbnail({
@@ -532,8 +558,11 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
       const res = await excelApi.import(file, siteId || undefined);
       setResult(res.data);
       onSuccess();
+      const warningCount = res.data.warnings?.length ?? 0;
       toast.success(
-        `นำเข้าสำเร็จ: ${res.data.imported} SP ใหม่, ${res.data.updated} อัปเดต, ${res.data.borrowsImported} การยืม`
+        warningCount > 0
+          ? `นำเข้าสำเร็จ: ${res.data.imported} SP ใหม่, ${res.data.updated} อัปเดต, ${res.data.borrowsImported} การยืม, ${warningCount} รายการแจ้งเตือน`
+          : `นำเข้าสำเร็จ: ${res.data.imported} SP ใหม่, ${res.data.updated} อัปเดต, ${res.data.borrowsImported} การยืม`
       );
     } catch (err: unknown) {
       const msg =
@@ -555,56 +584,78 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
         </DialogHeader>
 
         {result ? (
-          <div className="space-y-3 py-2">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg border bg-green-50 p-3">
-                <p className="text-2xl font-bold text-green-600">{result.imported}</p>
-                <p className="text-xs text-muted-foreground">SP ใหม่</p>
+          (() => {
+            const warnings = result.warnings ?? [];
+
+            return (
+              <div className="space-y-3 py-2">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg border bg-green-50 p-3">
+                    <p className="text-2xl font-bold text-green-600">{result.imported}</p>
+                    <p className="text-xs text-muted-foreground">SP ใหม่</p>
+                  </div>
+                  <div className="rounded-lg border bg-blue-50 p-3">
+                    <p className="text-2xl font-bold text-blue-600">{result.updated}</p>
+                    <p className="text-xs text-muted-foreground">อัปเดต</p>
+                  </div>
+                  <div className="rounded-lg border bg-gray-50 p-3">
+                    <p className="text-2xl font-bold text-gray-500">{result.skipped}</p>
+                    <p className="text-xs text-muted-foreground">ข้าม</p>
+                  </div>
+                  <div className="rounded-lg border bg-purple-50 p-3">
+                    <p className="text-2xl font-bold text-purple-600">{result.borrowsImported}</p>
+                    <p className="text-xs text-muted-foreground">การยืม</p>
+                  </div>
+                  <div className="rounded-lg border bg-amber-50 p-3">
+                    <p className="text-2xl font-bold text-amber-600">{result.ordersImported}</p>
+                    <p className="text-xs text-muted-foreground">คำสั่งซื้อ</p>
+                  </div>
+                  <div className="rounded-lg border bg-red-50 p-3">
+                    <p className="text-2xl font-bold text-red-500">{result.errors.length}</p>
+                    <p className="text-xs text-muted-foreground">ข้อผิดพลาด</p>
+                  </div>
+                  <div className="rounded-lg border bg-amber-50 p-3">
+                    <p className="text-2xl font-bold text-amber-600">{warnings.length}</p>
+                    <p className="text-xs text-muted-foreground">แจ้งเตือน</p>
+                  </div>
+                </div>
+                {result.sheetsProcessed?.length > 0 && (
+                  <div className="max-h-28 overflow-auto rounded border bg-blue-50 p-2">
+                    <p className="mb-1 text-xs font-medium text-blue-700">ชีทที่ประมวลผล:</p>
+                    {result.sheetsProcessed.map((s, i) => (
+                      <p key={i} className="text-xs text-blue-600">
+                        {s}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {warnings.length > 0 && (
+                  <div className="max-h-40 overflow-auto rounded border bg-amber-50 p-2">
+                    <p className="mb-1 text-xs font-medium text-amber-700">
+                      แจ้งเตือน ({warnings.length}):
+                    </p>
+                    {warnings.map((warning, i) => (
+                      <p key={i} className="text-xs text-amber-700">
+                        {warning}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {result.errors.length > 0 && (
+                  <div className="max-h-40 overflow-auto rounded border bg-red-50 p-2">
+                    <p className="mb-1 text-xs font-medium text-red-700">
+                      ข้อผิดพลาด ({result.errors.length}):
+                    </p>
+                    {result.errors.map((e, i) => (
+                      <p key={i} className="text-xs text-red-600">
+                        {e}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="rounded-lg border bg-blue-50 p-3">
-                <p className="text-2xl font-bold text-blue-600">{result.updated}</p>
-                <p className="text-xs text-muted-foreground">อัปเดต</p>
-              </div>
-              <div className="rounded-lg border bg-gray-50 p-3">
-                <p className="text-2xl font-bold text-gray-500">{result.skipped}</p>
-                <p className="text-xs text-muted-foreground">ข้าม</p>
-              </div>
-              <div className="rounded-lg border bg-purple-50 p-3">
-                <p className="text-2xl font-bold text-purple-600">{result.borrowsImported}</p>
-                <p className="text-xs text-muted-foreground">การยืม</p>
-              </div>
-              <div className="rounded-lg border bg-amber-50 p-3">
-                <p className="text-2xl font-bold text-amber-600">{result.ordersImported}</p>
-                <p className="text-xs text-muted-foreground">คำสั่งซื้อ</p>
-              </div>
-              <div className="rounded-lg border bg-red-50 p-3">
-                <p className="text-2xl font-bold text-red-500">{result.errors.length}</p>
-                <p className="text-xs text-muted-foreground">ข้อผิดพลาด</p>
-              </div>
-            </div>
-            {result.sheetsProcessed?.length > 0 && (
-              <div className="max-h-28 overflow-auto rounded border bg-blue-50 p-2">
-                <p className="mb-1 text-xs font-medium text-blue-700">ชีทที่ประมวลผล:</p>
-                {result.sheetsProcessed.map((s, i) => (
-                  <p key={i} className="text-xs text-blue-600">
-                    {s}
-                  </p>
-                ))}
-              </div>
-            )}
-            {result.errors.length > 0 && (
-              <div className="max-h-40 overflow-auto rounded border bg-red-50 p-2">
-                <p className="mb-1 text-xs font-medium text-red-700">
-                  ข้อผิดพลาด ({result.errors.length}):
-                </p>
-                {result.errors.map((e, i) => (
-                  <p key={i} className="text-xs text-red-600">
-                    {e}
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>
+            );
+          })()
         ) : (
           <div className="space-y-4 py-2">
             <div className="space-y-1">
@@ -684,7 +735,7 @@ export function InventoryPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<SparePart | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SparePart | null>(null);
-  const [detailTarget, setDetailTarget] = useState<SparePart | null>(null);
+  const [detailTarget, setDetailTarget] = useState<InventorySparePart | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -711,7 +762,7 @@ export function InventoryPage() {
     }
   }
 
-  const parts = data?.data ?? [];
+  const parts = (data?.data ?? []) as InventorySparePart[];
   const meta = data?.meta;
 
   const setFilter = useCallback((key: keyof SparePartFilters, value: string | undefined) => {
@@ -733,7 +784,7 @@ export function InventoryPage() {
     setSheetOpen(true);
   }
 
-  function openDetail(part: SparePart) {
+  function openDetail(part: InventorySparePart) {
     setDetailTarget(part);
   }
 
@@ -900,7 +951,12 @@ export function InventoryPage() {
                       <StatusBadge status={p.status} />
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      {p.serialNumber ?? '—'}
+                      <div className="flex flex-col">
+                        <span>{p.serialNumber ?? '—'}</span>
+                        {p.duplicateSites?.length ? (
+                          <DuplicateSerialBadge sites={p.duplicateSites} />
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell
                       className="max-w-[160px] truncate text-xs text-muted-foreground"
@@ -1051,7 +1107,21 @@ export function InventoryPage() {
                   />
                   <DetailItem label="Brand" value={detailTarget.brand.name} />
                   <DetailItem label="Material Code" value={detailTarget.materialCode ?? '—'} />
-                  <DetailItem label="Serial Number" value={detailTarget.serialNumber ?? '—'} />
+                  <DetailItem
+                    label="Serial Number"
+                    value={
+                      detailTarget.serialNumber ? (
+                        <div className="flex flex-col gap-1">
+                          <span>{detailTarget.serialNumber}</span>
+                          {detailTarget.duplicateSites?.length ? (
+                            <DuplicateSerialBadge sites={detailTarget.duplicateSites} />
+                          ) : null}
+                        </div>
+                      ) : (
+                        '—'
+                      )
+                    }
+                  />
                   <DetailItem label="MAC Address" value={detailTarget.macAddress ?? '—'} />
                   <DetailItem label="Quantity" value={detailTarget.quantity} />
                   <DetailItem label="Min Stock" value={detailTarget.minStock} />

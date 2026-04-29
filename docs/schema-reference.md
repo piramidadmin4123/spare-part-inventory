@@ -32,7 +32,7 @@
 | Qty           | quantity           | int     | ✓        | Default 1                     |
 | Cost (Total)  | cost               | decimal | ✗        |                               |
 | Status        | status             | enum    | ✓        | Map ไป ItemStatus             |
-| Serial Number | serialNumber       | string  | ✗        | Unique                        |
+| Serial Number | serialNumber       | string  | ✗        | Unique per site               |
 | Remark        | remark             | text    | ✗        |                               |
 | Name          | borrower.name      | string  | ✗        | สร้าง BorrowTransaction ถ้ามี |
 | Date Start    | borrowTx.dateStart | date    | ✗        |                               |

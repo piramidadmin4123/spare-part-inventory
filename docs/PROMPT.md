@@ -229,7 +229,7 @@ model SparePart {
   materialCode   String?    // ONWS005C500001
   modelCode      String     // IAP-103-RW, DS-2CD1323G0-IUF, etc.
   productName    String     @db.Text  // full product description
-  serialNumber   String?    @unique
+  serialNumber   String?
   macAddress     String?
 
   quantity       Int        @default(1)

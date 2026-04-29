@@ -546,6 +546,7 @@ export function AdditionalOrdersPage() {
   const { data: sites = [] } = useSites();
 
   const orders = data?.orders ?? [];
+  const uniqueOrders = Array.from(new Map(orders.map((order) => [order.id, order])).values());
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / LIMIT);
 
@@ -668,14 +669,14 @@ export function AdditionalOrdersPage() {
                   <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
-            ) : orders.length === 0 ? (
+            ) : uniqueOrders.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={colSpan} className="py-10 text-center text-muted-foreground">
                   ไม่มีข้อมูล
                 </TableCell>
               </TableRow>
             ) : (
-              orders.map((order, idx) => (
+              uniqueOrders.map((order, idx) => (
                 <TableRow key={order.id}>
                   <TableCell className="text-xs text-muted-foreground">
                     {(page - 1) * LIMIT + idx + 1}
@@ -750,7 +751,7 @@ export function AdditionalOrdersPage() {
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <div className="flex gap-4">
           {Object.entries(STATUS_CONFIG).map(([val, cfg]) => {
-            const count = orders.filter((o) => o.status === val).length;
+            const count = uniqueOrders.filter((o) => o.status === val).length;
             const Icon = cfg.icon;
             return (
               <span key={val} className={`flex items-center gap-1 ${cfg.color}`}>

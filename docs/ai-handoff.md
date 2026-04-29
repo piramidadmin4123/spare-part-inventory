@@ -8,6 +8,12 @@
 - Added duplicate detection for Additional Order rows using a normalized composite key so re-importing the same exact row does not create duplicates.
 - Duplicate rows are now counted in `skipped`.
 
+## Serial number handling
+
+- Changed spare-part serial handling from global uniqueness to per-site uniqueness.
+- Excel import now creates the same serial number as separate records when the rows belong to different sites.
+- Added warnings for cross-site serial collisions so the user can review suspicious duplicates instead of silently losing rows.
+
 ## Validation
 
 - Ran backend validation on `apps/api/src/modules/excel/excel.router.ts` with no errors reported.

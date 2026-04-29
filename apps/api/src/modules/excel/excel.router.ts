@@ -90,7 +90,15 @@ excelRouter.post(
       let skipped = 0;
       let borrowsImported = 0;
       const errors: string[] = [];
+      const warnings: string[] = [];
+      const warningKeys = new Set<string>();
       const sheetsProcessed: string[] = [];
+
+      const pushWarning = (key: string, message: string) => {
+        if (warningKeys.has(key)) return;
+        warningKeys.add(key);
+        warnings.push(message);
+      };
 
       const parseDate = (raw: unknown): Date | null => {
         if (!raw) return null;
@@ -281,6 +289,24 @@ excelRouter.post(
           const remark = rawRemark || null;
           const imageUrl = rowImageMap.get(r) ?? undefined;
 
+          const crossSiteDuplicate = serialNumber
+            ? await prisma.sparePart.findFirst({
+                where: {
+                  serialNumber,
+                  siteId: { not: sheetSiteId },
+                },
+                select: {
+                  site: { select: { code: true, name: true } },
+                },
+              })
+            : null;
+          if (crossSiteDuplicate) {
+            pushWarning(
+              `${sheetSiteId}:${serialNumber}:${crossSiteDuplicate.site.code}`,
+              `Row ${r} (${productName}): Serial Number ${serialNumber} already exists in site ${crossSiteDuplicate.site.code} — imported as a separate site record`
+            );
+          }
+
           try {
             // Upsert equipment type by code (default to "Unknown" if blank)
             const resolvedTypeCode = typeCode || 'Unknown';
@@ -300,9 +326,11 @@ excelRouter.post(
               brand = await prisma.brand.create({ data: { name: resolvedBrandName } });
             }
 
-            // Check if exists by serialNumber
+            // Check if exists in the same site by serialNumber
             const existing = serialNumber
-              ? await prisma.sparePart.findFirst({ where: { serialNumber } })
+              ? await prisma.sparePart.findFirst({
+                  where: { siteId: sheetSiteId, serialNumber },
+                })
               : null;
 
             let partId: string;
@@ -612,6 +640,7 @@ excelRouter.post(
         ordersImported,
         borrowsImported,
         errors,
+        warnings,
         sheetsProcessed,
       });
     } catch (err) {

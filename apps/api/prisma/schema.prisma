@@ -115,7 +115,7 @@ model SparePart {
   materialCode String?
   modelCode    String
   productName  String    @db.Text
-  serialNumber String?   @unique
+  serialNumber String?
   macAddress   String?
 
   quantity Int     @default(1)
@@ -132,6 +132,7 @@ model SparePart {
 
   borrowTransactions BorrowTransaction[]
 
+  @@unique([siteId, serialNumber])
   @@index([siteId])
   @@index([equipmentTypeId])
   @@index([brandId])

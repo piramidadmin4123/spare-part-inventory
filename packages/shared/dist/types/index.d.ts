@@ -85,6 +85,7 @@ export interface SparePart {
   location?: string | null;
   remark?: string | null;
   imageUrl?: string | null;
+  duplicateSites?: Pick<Site, 'id' | 'code' | 'name'>[];
   currentBorrow?: BorrowTransaction | null;
   createdAt: string;
   updatedAt: string;

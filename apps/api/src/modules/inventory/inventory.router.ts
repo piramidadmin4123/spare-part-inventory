@@ -56,8 +56,51 @@ inventoryRouter.get('/', async (req, res, next) => {
       prisma.sparePart.count({ where }),
     ]);
 
+    const serialNumbers = Array.from(
+      new Set(
+        data
+          .map((part) => part.serialNumber)
+          .filter((serialNumber): serialNumber is string => !!serialNumber)
+      )
+    );
+
+    const duplicateSitesBySerial = new Map<
+      string,
+      Map<string, { id: string; code: string; name: string }>
+    >();
+    if (serialNumbers.length > 0) {
+      const duplicateRows = await prisma.sparePart.findMany({
+        where: { serialNumber: { in: serialNumbers } },
+        select: {
+          serialNumber: true,
+          site: { select: { id: true, code: true, name: true } },
+        },
+      });
+
+      for (const row of duplicateRows) {
+        if (!row.serialNumber) continue;
+        if (!duplicateSitesBySerial.has(row.serialNumber)) {
+          duplicateSitesBySerial.set(row.serialNumber, new Map());
+        }
+        duplicateSitesBySerial.get(row.serialNumber)!.set(row.site.id, row.site);
+      }
+    }
+
+    const dataWithDuplicates = data.map((part) => {
+      const duplicateSites = part.serialNumber
+        ? Array.from(duplicateSitesBySerial.get(part.serialNumber)?.values() ?? []).filter(
+            (site) => site.id !== part.siteId
+          )
+        : [];
+
+      return {
+        ...part,
+        duplicateSites: duplicateSites.length > 0 ? duplicateSites : undefined,
+      };
+    });
+
     res.json({
-      data,
+      data: dataWithDuplicates,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
@@ -85,8 +128,8 @@ inventoryRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res, next
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid input', parsed.error.issues);
 
     if (parsed.data.serialNumber) {
-      const exists = await prisma.sparePart.findUnique({
-        where: { serialNumber: parsed.data.serialNumber },
+      const exists = await prisma.sparePart.findFirst({
+        where: { siteId: parsed.data.siteId, serialNumber: parsed.data.serialNumber },
       });
       if (exists) throw new AppError(409, 'CONFLICT', 'Serial number already exists');
     }
@@ -113,9 +156,12 @@ inventoryRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, 
     const part = await prisma.sparePart.findUnique({ where: { id } });
     if (!part) throw new AppError(404, 'NOT_FOUND', 'Spare part not found');
 
-    if (parsed.data.serialNumber && parsed.data.serialNumber !== part.serialNumber) {
-      const exists = await prisma.sparePart.findUnique({
-        where: { serialNumber: parsed.data.serialNumber },
+    const nextSiteId = parsed.data.siteId ?? part.siteId;
+    const nextSerialNumber = parsed.data.serialNumber ?? part.serialNumber;
+
+    if (nextSerialNumber) {
+      const exists = await prisma.sparePart.findFirst({
+        where: { siteId: nextSiteId, serialNumber: nextSerialNumber },
       });
       if (exists) throw new AppError(409, 'CONFLICT', 'Serial number already exists');
     }
