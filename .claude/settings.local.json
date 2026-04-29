@@ -1,5 +1,9 @@
 {
   "permissions": {
-    "allow": ["Bash(pnpm --filter @spare-part/api build)"]
+    "allow": [
+      "Bash(pnpm --filter @spare-part/api build)",
+      "Bash(git -C d:/spare-part-inventory_backup diff --stat HEAD apps/api/src/modules/excel/excel.router.ts apps/api/src/modules/additional-orders/additional-orders.router.ts apps/api/src/lib/additional-order-key.ts docs/ai-handoff.md)",
+      "Bash(git -C d:/spare-part-inventory_backup stash)"
+    ]
   }
 }

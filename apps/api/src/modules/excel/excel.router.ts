@@ -7,6 +7,7 @@ import { AppError } from '../../middleware/error-handler.js';
 import { prisma } from '../../lib/prisma.js';
 import { Prisma } from '@prisma/client';
 import type { ItemStatus } from '@spare-part/shared';
+import { buildAdditionalOrderKey } from '../../lib/additional-order-key.js';
 
 export const excelRouter: IRouter = Router();
 
@@ -425,42 +426,13 @@ excelRouter.post(
 
       // ── Additional Order sheets ──────────────────────────────────────────
       let ordersImported = 0;
-      const normalizeOrderText = (value: unknown) =>
-        String(value ?? '')
-          .trim()
-          .replace(/\s+/g, ' ')
-          .toLowerCase();
-      const normalizeOrderDecimal = (value: Prisma.Decimal | null) =>
-        value ? value.toFixed(2) : '';
-      const makeOrderKey = (
-        sheetSiteId: string | null,
-        type: string,
-        brandName: string,
-        modelCode: string | null,
-        productName: string,
-        quantity: number,
-        unitCost: Prisma.Decimal | null,
-        totalCost: Prisma.Decimal | null,
-        remark: string | null
-      ) =>
-        [
-          sheetSiteId ?? '',
-          normalizeOrderText(type),
-          normalizeOrderText(brandName),
-          normalizeOrderText(modelCode),
-          normalizeOrderText(productName),
-          String(quantity),
-          normalizeOrderDecimal(unitCost),
-          normalizeOrderDecimal(totalCost),
-          normalizeOrderText(remark),
-        ].join('|');
       const importedOrderKeys = new Set<string>();
 
       for (const ws of wb.worksheets) {
         if (!ws.name.toLowerCase().startsWith('additional order')) continue;
 
         // Auto-map sheet → site (e.g. "Additional Order BKK" → BKK)
-        let aoSiteId: string | null = siteId;
+        let aoSiteId: string | null = siteId ?? null;
         const keyword = ws.name
           .replace(/additional order\s*/i, '')
           .trim()
@@ -499,6 +471,36 @@ excelRouter.post(
           }
         }
         if (aoHeader < 0) continue;
+
+        const existingOrders = await prisma.additionalOrder.findMany({
+          where: { siteId: aoSiteId },
+          select: {
+            siteId: true,
+            type: true,
+            modelCode: true,
+            productName: true,
+            quantity: true,
+            unitCost: true,
+            totalCost: true,
+            remark: true,
+            brand: { select: { name: true } },
+          },
+        });
+        const existingOrderKeys = new Set(
+          existingOrders.map((order) =>
+            buildAdditionalOrderKey({
+              siteId: order.siteId,
+              brandName: order.brand?.name ?? null,
+              type: order.type,
+              modelCode: order.modelCode,
+              productName: order.productName,
+              quantity: order.quantity,
+              unitCost: order.unitCost,
+              totalCost: order.totalCost,
+              remark: order.remark,
+            })
+          )
+        );
 
         // Column map
         const aoCol: Record<string, number> = {};
@@ -564,19 +566,19 @@ excelRouter.post(
               ? new Prisma.Decimal(String(totalCostRaw))
               : null;
           const remark = String(aoCv(row, aoCol.remark) ?? '').trim() || null;
-          const orderKey = makeOrderKey(
-            aoSiteId,
-            type,
+          const orderKey = buildAdditionalOrderKey({
+            siteId: aoSiteId,
             brandName,
+            type,
             modelCode,
             productName,
             quantity,
             unitCost,
             totalCost,
-            remark
-          );
+            remark,
+          });
 
-          if (importedOrderKeys.has(orderKey)) {
+          if (importedOrderKeys.has(orderKey) || existingOrderKeys.has(orderKey)) {
             skipped++;
             continue;
           }
@@ -589,26 +591,6 @@ excelRouter.post(
               : null;
             if (!brand && brandName)
               brand = await prisma.brand.create({ data: { name: brandName } });
-
-            const existingOrder = await prisma.additionalOrder.findFirst({
-              where: {
-                siteId: aoSiteId,
-                brandId: brand?.id ?? null,
-                type,
-                modelCode,
-                productName,
-                quantity,
-                unitCost,
-                totalCost,
-                remark,
-              },
-              select: { id: true },
-            });
-            if (existingOrder) {
-              importedOrderKeys.add(orderKey);
-              skipped++;
-              continue;
-            }
 
             await prisma.additionalOrder.create({
               data: {
