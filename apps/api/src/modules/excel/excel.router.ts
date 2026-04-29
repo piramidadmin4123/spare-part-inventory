@@ -75,17 +75,41 @@ function truncateLabel(value: string, max = 60): string {
   return v.slice(0, max - 1) + '…';
 }
 
+const FIELD_LABELS_TH: Record<string, string> = {
+  serialNumber: 'Serial Number',
+  macAddress: 'MAC Address',
+  modelCode: 'รหัสรุ่น (Model Code)',
+  materialCode: 'รหัสวัสดุ (Material Code)',
+  email: 'อีเมล',
+  code: 'รหัส',
+  name: 'ชื่อ',
+};
+
+function thaiFieldLabel(fields: string): string {
+  return fields
+    .split(',')
+    .map((f) => f.trim())
+    .map((f) => FIELD_LABELS_TH[f] ?? f)
+    .join(', ');
+}
+
 function describeRowError(rowErr: unknown): string {
   if (rowErr instanceof Prisma.PrismaClientKnownRequestError) {
     if (rowErr.code === 'P2002') {
       const target = rowErr.meta?.target as string[] | string | undefined;
       const fields = Array.isArray(target) ? target.join(', ') : (target ?? '');
-      return fields
-        ? `ข้อมูลซ้ำในฟิลด์ "${fields}" (DB unique constraint)`
-        : 'ข้อมูลซ้ำใน DB (unique constraint)';
+      const label = fields ? thaiFieldLabel(fields) : '';
+      return label
+        ? `ข้อมูลในช่อง "${label}" ซ้ำกับรายการที่มีอยู่แล้วในระบบ จึงไม่ได้บันทึกแถวนี้ — โปรดตรวจไฟล์ Excel ว่ากรอกค่าซ้ำหรือไม่ หรือแก้ไขค่าให้ไม่ซ้ำก่อน Import ใหม่`
+        : 'ข้อมูลแถวนี้ซ้ำกับรายการที่มีอยู่แล้วในระบบ จึงไม่ได้บันทึก — โปรดตรวจไฟล์ Excel ว่ามีค่าซ้ำหรือไม่';
     }
-    if (rowErr.code === 'P2003') return 'อ้างอิงข้อมูลไม่พบ (foreign key)';
-    return `ฐานข้อมูลปฏิเสธ (${rowErr.code})`;
+    if (rowErr.code === 'P2003') {
+      return 'แถวนี้อ้างถึงข้อมูลที่ยังไม่มีในระบบ (เช่น ไซต์ / แบรนด์ / ประเภทอุปกรณ์ที่ระบุ) — โปรดสร้างข้อมูลที่อ้างถึงก่อน หรือแก้ค่าในไฟล์ Excel ให้ตรงกับข้อมูลที่มีอยู่';
+    }
+    if (rowErr.code === 'P2025') {
+      return 'ไม่พบรายการที่ต้องการแก้ไขในระบบ — อาจถูกลบไประหว่างการ Import โปรดลองใหม่';
+    }
+    return `ระบบฐานข้อมูลปฏิเสธการบันทึกแถวนี้ (รหัสภายใน ${rowErr.code}) — โปรดส่งภาพแจ้งเตือนนี้ให้ทีมพัฒนาตรวจสอบ`;
   }
   if (rowErr instanceof Error) return rowErr.message;
   return String(rowErr);
@@ -179,7 +203,7 @@ excelRouter.post(
           } else {
             if (!sheetSiteId) {
               errors.push(
-                `Sheet "${ws.name}": ไม่พบ site ที่ตรงกับ "${englishKeyword}" และไม่ได้เลือก site เริ่มต้น — ข้ามชีทนี้`
+                `ชีท "${ws.name}": ไม่พบไซต์ในระบบที่ตรงกับชื่อ "${englishKeyword}" และยังไม่ได้เลือก "ไซต์เริ่มต้น" ในหน้า Import — จึงข้ามทั้งชีทนี้ทุกแถว วิธีแก้: (1) สร้างไซต์ "${englishKeyword}" ในเมนูจัดการไซต์ก่อน หรือ (2) เลือกไซต์เริ่มต้นในหน้า Import แล้วลองใหม่`
               );
               continue;
             }
@@ -188,7 +212,7 @@ excelRouter.post(
         } else {
           if (!sheetSiteId) {
             errors.push(
-              `Sheet "${ws.name}": ไม่พบ site ในชื่อชีท และไม่มี site เริ่มต้น — ข้ามชีทนี้`
+              `ชีท "${ws.name}": ในชื่อชีทไม่มีคำที่บอกได้ว่าเป็นไซต์ไหน และยังไม่ได้เลือก "ไซต์เริ่มต้น" ในหน้า Import — จึงข้ามทั้งชีทนี้ทุกแถว วิธีแก้: เลือกไซต์เริ่มต้นในหน้า Import แล้วลองใหม่ หรือเปลี่ยนชื่อชีทให้มีรหัสไซต์ เช่น "Spare Parts BKK"`
             );
             continue;
           }
@@ -327,7 +351,7 @@ excelRouter.post(
           if (crossSiteDuplicate) {
             pushWarning(
               `${sheetSiteId}:${serialNumber}:${crossSiteDuplicate.site.code}`,
-              `แถว ${r}: SN "${serialNumber}" มีอยู่แล้วในไซต์ ${crossSiteDuplicate.site.code} — บันทึกเป็นรายการของไซต์ปัจจุบันแยกต่างหาก (${truncateLabel(productName, 50)})`
+              `แถว ${r}: Serial Number "${serialNumber}" มีอยู่แล้วในไซต์ ${crossSiteDuplicate.site.code} ระบบจึงบันทึกแถวนี้เป็นอุปกรณ์ใหม่ของไซต์ปัจจุบันให้แทน — ถ้าเป็นอุปกรณ์ตัวเดียวกันที่ย้ายไซต์ โปรดเข้าไปลบรายการเดิมในไซต์ ${crossSiteDuplicate.site.code} ออกเอง (อุปกรณ์: ${truncateLabel(productName, 50)})`
             );
           }
 
@@ -443,7 +467,7 @@ excelRouter.post(
             }
           } catch (rowErr) {
             errors.push(
-              `แถว ${r} (${truncateLabel(productName, 50)}): ${describeRowError(rowErr)}`
+              `แถว ${r} (อุปกรณ์: ${truncateLabel(productName, 50)}) บันทึกไม่สำเร็จ: ${describeRowError(rowErr)}`
             );
           }
         }
@@ -473,7 +497,9 @@ excelRouter.post(
           });
           if (s) aoSiteId = s.id;
           else {
-            errors.push(`Sheet "${ws.name}": ไม่พบ site ที่ตรงกับ "${keyword}" — ข้ามชีทนี้`);
+            errors.push(
+              `ชีท "${ws.name}" (Additional Order): ไม่พบไซต์ในระบบที่ตรงกับ "${keyword}" — จึงข้ามทั้งชีทนี้ วิธีแก้: สร้างไซต์ "${keyword}" ในเมนูจัดการไซต์ก่อน แล้วลอง Import ใหม่`
+            );
             continue;
           }
         }
@@ -636,7 +662,7 @@ excelRouter.post(
             ordersImported++;
           } catch (rowErr) {
             errors.push(
-              `Additional Order แถว ${r} (${truncateLabel(productName, 50)}): ${describeRowError(rowErr)}`
+              `รายการสั่งซื้อเพิ่ม แถว ${r} (สินค้า: ${truncateLabel(productName, 50)}) บันทึกไม่สำเร็จ: ${describeRowError(rowErr)}`
             );
           }
         }
@@ -1193,7 +1219,7 @@ excelRouter.post(
                 : await prisma.sparePart.findFirst({ where: { modelCode } });
               if (!sparePart) {
                 errors.push(
-                  `Row ${r} [${ws.name}]: ไม่พบ spare part (${serialNumber || modelCode})`
+                  `แถว ${r} [ชีท ${ws.name}]: ไม่พบอุปกรณ์ในระบบที่มี Serial Number / รหัสรุ่น "${serialNumber || modelCode}" — ระบบจึงไม่สามารถบันทึกการยืมแถวนี้ได้ วิธีแก้: เพิ่มอุปกรณ์ตัวนี้เข้าระบบก่อน หรือแก้ค่าในไฟล์ Excel ให้ตรงกับอุปกรณ์ที่มีอยู่`
                 );
                 continue;
               }
@@ -1234,7 +1260,9 @@ excelRouter.post(
               });
               imported++;
             } catch (rowErr) {
-              errors.push(`แถว ${r} [${ws.name}]: ${describeRowError(rowErr)}`);
+              errors.push(
+                `แถว ${r} [ชีท ${ws.name}] บันทึกการยืมไม่สำเร็จ: ${describeRowError(rowErr)}`
+              );
             }
           }
           continue;
@@ -1303,7 +1331,9 @@ excelRouter.post(
           try {
             const borrower = await prisma.user.findUnique({ where: { email: borrowerEmail } });
             if (!borrower) {
-              errors.push(`Row ${r}: ไม่พบ user (${borrowerEmail})`);
+              errors.push(
+                `แถว ${r}: ไม่พบผู้ใช้ในระบบที่มีอีเมล "${borrowerEmail}" — ระบบจึงไม่สามารถบันทึกการยืมแถวนี้ได้ วิธีแก้: สร้างผู้ใช้ที่อีเมลตรงกันก่อน หรือแก้อีเมลในไฟล์ Excel ให้ตรงกับผู้ใช้ที่มีอยู่`
+              );
               continue;
             }
 
@@ -1312,7 +1342,9 @@ excelRouter.post(
               ? await prisma.sparePart.findFirst({ where: { serialNumber } })
               : await prisma.sparePart.findFirst({ where: { modelCode } });
             if (!sparePart) {
-              errors.push(`Row ${r}: ไม่พบ spare part (${modelCode})`);
+              errors.push(
+                `แถว ${r}: ไม่พบอุปกรณ์ในระบบที่มีรหัสรุ่น "${modelCode}" — ระบบจึงไม่สามารถบันทึกการยืมแถวนี้ได้ วิธีแก้: เพิ่มอุปกรณ์ตัวนี้เข้าระบบก่อน หรือแก้รหัสรุ่นในไฟล์ Excel ให้ตรงกับอุปกรณ์ที่มีอยู่`
+              );
               continue;
             }
 
@@ -1331,7 +1363,7 @@ excelRouter.post(
             });
             imported++;
           } catch (rowErr) {
-            errors.push(`แถว ${r}: ${describeRowError(rowErr)}`);
+            errors.push(`แถว ${r} บันทึกการยืมไม่สำเร็จ: ${describeRowError(rowErr)}`);
           }
         }
       }

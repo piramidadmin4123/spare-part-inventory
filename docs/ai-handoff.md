@@ -34,9 +34,12 @@
 
 ## Import message readability + Prisma error mapping
 
-- Added `truncateLabel` and `describeRowError` helpers in `apps/api/src/modules/excel/excel.router.ts`.
-- All row-level `errors.push(...(rowErr as Error).message)` callsites now use `describeRowError`, which translates Prisma `P2002` (unique) and `P2003` (FK) errors to short Thai messages instead of dumping the raw `Invalid \`prisma.sparePart.create()\` invocation: ...` blob.
-- Cross-site serial-number warning rewritten in Thai with truncated product name: `แถว N: SN "..." มีอยู่แล้วในไซต์ X — บันทึกเป็นรายการของไซต์ปัจจุบันแยกต่างหาก (...)`.
+- Added `truncateLabel`, `thaiFieldLabel`, and `describeRowError` helpers in `apps/api/src/modules/excel/excel.router.ts`.
+- All row-level catch blocks now use `describeRowError`, which translates Prisma `P2002`/`P2003`/`P2025` into plain-Thai admin-facing messages that explain WHAT happened, WHY, and HOW to fix — no DB jargon ("constraint", "FK", error codes are de-emphasized).
+- Field names in unique-violation messages are mapped to human labels via `FIELD_LABELS_TH` (e.g. `serialNumber` → "Serial Number", `modelCode` → "รหัสรุ่น (Model Code)").
+- Cross-site serial-number warning rewritten as a full sentence telling the admin what the system did and what to check.
+- Sheet-level errors (no matching site / no default site / no site keyword) now suggest a concrete fix path inline.
+- Borrow-import "user not found" / "spare part not found" errors now spell out the cause and the corrective action instead of a terse `Row N: ไม่พบ user (...)`.
 
 ## DB schema sync required
 
