@@ -526,10 +526,10 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
   }
 
   async function handleImport() {
-    if (!file || !siteId) return;
+    if (!file) return;
     setLoading(true);
     try {
-      const res = await excelApi.import(file, siteId);
+      const res = await excelApi.import(file, siteId || undefined);
       setResult(res.data);
       onSuccess();
       toast.success(
@@ -608,10 +608,10 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
         ) : (
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label>Site ปลายทาง *</Label>
+              <Label>Site ปลายทาง (ไม่บังคับ)</Label>
               <Select value={siteId} onValueChange={setSiteId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="เลือก Site" />
+                  <SelectValue placeholder="ปล่อยว่างได้ ถ้าไฟล์มีชื่อชีตระบุ site แล้ว" />
                 </SelectTrigger>
                 <SelectContent>
                   {sites.map((s) => (
@@ -635,7 +635,9 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
                 ) : (
                   <p className="text-sm text-muted-foreground">คลิกเพื่อเลือกไฟล์</p>
                 )}
-                <p className="mt-1 text-xs text-muted-foreground">รองรับ .xlsx ขนาดไม่เกิน 10MB</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  รองรับ .xlsx ขนาดไม่เกิน 10MB และระบบจะจับ site จากชื่อชีตให้อัตโนมัติ
+                </p>
                 <input
                   ref={fileRef}
                   type="file"
@@ -661,7 +663,7 @@ function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
             {result ? 'ปิด' : 'ยกเลิก'}
           </Button>
           {!result && (
-            <Button onClick={handleImport} disabled={!file || !siteId || loading}>
+            <Button onClick={handleImport} disabled={!file || loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               นำเข้า
             </Button>

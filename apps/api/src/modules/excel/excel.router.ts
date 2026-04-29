@@ -77,10 +77,8 @@ excelRouter.post(
       if (!req.file) throw new AppError(400, 'VALIDATION_ERROR', 'No file uploaded');
 
       const siteId = req.body.siteId as string | undefined;
-      if (!siteId) throw new AppError(400, 'VALIDATION_ERROR', 'siteId is required');
-
-      const site = await prisma.site.findUnique({ where: { id: siteId } });
-      if (!site) throw new AppError(404, 'NOT_FOUND', 'Site not found');
+      const baseSite = siteId ? await prisma.site.findUnique({ where: { id: siteId } }) : null;
+      if (siteId && !baseSite) throw new AppError(404, 'NOT_FOUND', 'Site not found');
 
       const wb = new ExcelJS.Workbook();
       const buf = req.file.buffer;
@@ -108,7 +106,7 @@ excelRouter.post(
 
         // Auto-map sheet name → site
         // "Spare Parts All" → always BKK; "Spare Parts KIS" → KIS, etc.
-        let sheetSiteId = siteId;
+        let sheetSiteId = baseSite?.id ?? null;
         const sheetSuffix = ws.name.replace(/spare parts\s*/i, '').trim();
         const allKeywords = sheetSuffix.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [];
         const englishKeyword = allKeywords.join(' ').trim() || null;
@@ -147,13 +145,22 @@ excelRouter.post(
             sheetSiteId = matched.id;
             sheetsProcessed.push(`"${ws.name}" → ${matched.code}`);
           } else {
+            if (!sheetSiteId) {
+              errors.push(
+                `Sheet "${ws.name}": ไม่พบ site ที่ตรงกับ "${englishKeyword}" และไม่ได้เลือก site เริ่มต้น — ข้ามชีทนี้`
+              );
+              continue;
+            }
+            sheetsProcessed.push(`"${ws.name}" → (ใช้ site เริ่มต้น)`);
+          }
+        } else {
+          if (!sheetSiteId) {
             errors.push(
-              `Sheet "${ws.name}": ไม่พบ site ที่ตรงกับ "${englishKeyword}" — ข้ามชีทนี้`
+              `Sheet "${ws.name}": ไม่พบ site ในชื่อชีท และไม่มี site เริ่มต้น — ข้ามชีทนี้`
             );
             continue;
           }
-        } else {
-          sheetsProcessed.push(`"${ws.name}" → (ใช้ site ที่เลือก: ${site.code})`);
+          sheetsProcessed.push(`"${ws.name}" → (ใช้ site เริ่มต้น)`);
         }
 
         // Find header row (contains "PRODUCT NAME")

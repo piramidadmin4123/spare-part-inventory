@@ -24,10 +24,10 @@ export interface ExportFilters {
 }
 
 export const excelApi = {
-  import: (file: File, siteId: string) => {
+  import: (file: File, siteId?: string) => {
     const form = new FormData();
     form.append('file', file);
-    form.append('siteId', siteId);
+    if (siteId) form.append('siteId', siteId);
     return apiClient.post<ImportResult>('/api/excel/import', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
