@@ -68,6 +68,29 @@ function resolveExcelImageAsset(imageUrl?: string | null): ExcelImageAsset | nul
   return asset;
 }
 
+// ── Message helpers (used to keep import warnings/errors short and readable) ──
+function truncateLabel(value: string, max = 60): string {
+  const v = value.trim();
+  if (v.length <= max) return v;
+  return v.slice(0, max - 1) + '…';
+}
+
+function describeRowError(rowErr: unknown): string {
+  if (rowErr instanceof Prisma.PrismaClientKnownRequestError) {
+    if (rowErr.code === 'P2002') {
+      const target = rowErr.meta?.target as string[] | string | undefined;
+      const fields = Array.isArray(target) ? target.join(', ') : (target ?? '');
+      return fields
+        ? `ข้อมูลซ้ำในฟิลด์ "${fields}" (DB unique constraint)`
+        : 'ข้อมูลซ้ำใน DB (unique constraint)';
+    }
+    if (rowErr.code === 'P2003') return 'อ้างอิงข้อมูลไม่พบ (foreign key)';
+    return `ฐานข้อมูลปฏิเสธ (${rowErr.code})`;
+  }
+  if (rowErr instanceof Error) return rowErr.message;
+  return String(rowErr);
+}
+
 // ── POST /api/excel/import ────────────────────────────────────────────────────
 excelRouter.post(
   '/import',
@@ -304,7 +327,7 @@ excelRouter.post(
           if (crossSiteDuplicate) {
             pushWarning(
               `${sheetSiteId}:${serialNumber}:${crossSiteDuplicate.site.code}`,
-              `Row ${r} (${productName}): Serial Number ${serialNumber} already exists in site ${crossSiteDuplicate.site.code} — imported as a separate site record`
+              `แถว ${r}: SN "${serialNumber}" มีอยู่แล้วในไซต์ ${crossSiteDuplicate.site.code} — บันทึกเป็นรายการของไซต์ปัจจุบันแยกต่างหาก (${truncateLabel(productName, 50)})`
             );
           }
 
@@ -419,7 +442,9 @@ excelRouter.post(
               }
             }
           } catch (rowErr) {
-            errors.push(`Row ${r} (${productName}): ${(rowErr as Error).message}`);
+            errors.push(
+              `แถว ${r} (${truncateLabel(productName, 50)}): ${describeRowError(rowErr)}`
+            );
           }
         }
       }
@@ -610,7 +635,9 @@ excelRouter.post(
             importedOrderKeys.add(orderKey);
             ordersImported++;
           } catch (rowErr) {
-            errors.push(`AO Row ${r} (${productName}): ${(rowErr as Error).message}`);
+            errors.push(
+              `Additional Order แถว ${r} (${truncateLabel(productName, 50)}): ${describeRowError(rowErr)}`
+            );
           }
         }
       }
@@ -1207,7 +1234,7 @@ excelRouter.post(
               });
               imported++;
             } catch (rowErr) {
-              errors.push(`Row ${r} [${ws.name}]: ${(rowErr as Error).message}`);
+              errors.push(`แถว ${r} [${ws.name}]: ${describeRowError(rowErr)}`);
             }
           }
           continue;
@@ -1304,7 +1331,7 @@ excelRouter.post(
             });
             imported++;
           } catch (rowErr) {
-            errors.push(`Row ${r}: ${(rowErr as Error).message}`);
+            errors.push(`แถว ${r}: ${describeRowError(rowErr)}`);
           }
         }
       }

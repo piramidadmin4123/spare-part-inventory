@@ -31,3 +31,14 @@
 - Root cause: the in-file `makeOrderKey` ordered fields as `siteId|type|brand|...` while `buildAdditionalOrderKey` orders them as `siteId|brand|type|...`, so existing-row keys never matched imported-row keys and duplicates were created on every re-import.
 - Quantity is now normalized via `Math.trunc` (consistent with the helper), preventing `1` vs `1.0` mismatches.
 - Tightened `aoSiteId` initial value from `siteId` (`string | undefined`) to `siteId ?? null` to satisfy the `string | null` annotation and unblock typecheck.
+
+## Import message readability + Prisma error mapping
+
+- Added `truncateLabel` and `describeRowError` helpers in `apps/api/src/modules/excel/excel.router.ts`.
+- All row-level `errors.push(...(rowErr as Error).message)` callsites now use `describeRowError`, which translates Prisma `P2002` (unique) and `P2003` (FK) errors to short Thai messages instead of dumping the raw `Invalid \`prisma.sparePart.create()\` invocation: ...` blob.
+- Cross-site serial-number warning rewritten in Thai with truncated product name: `แถว N: SN "..." มีอยู่แล้วในไซต์ X — บันทึกเป็นรายการของไซต์ปัจจุบันแยกต่างหาก (...)`.
+
+## DB schema sync required
+
+- The `serialNumber` unique-constraint errors observed during import are caused by the database still enforcing a global `UNIQUE(serialNumber)`, while `prisma/schema.prisma` declares `@@unique([siteId, serialNumber])`. Diagnostic: Prisma's composite-unique error formats as `(\`siteId\`,\`serialNumber\`)`, but observed errors say `(\`serialNumber\`)` only — proving the DB constraint is the legacy global one.
+- Action required: run `npx prisma db push` (or `pnpm --filter @spare-part/api db:push`) against the live DB to drop the global unique and create the composite. Until then, cross-site duplicates will fail with the readable mapped message instead of being inserted as a separate site record.
