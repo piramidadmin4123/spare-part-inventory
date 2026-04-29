@@ -390,15 +390,46 @@ excelRouter.post(
 
       // ── Additional Order sheets ──────────────────────────────────────────
       let ordersImported = 0;
+      const normalizeOrderText = (value: unknown) =>
+        String(value ?? '')
+          .trim()
+          .replace(/\s+/g, ' ')
+          .toLowerCase();
+      const normalizeOrderDecimal = (value: Prisma.Decimal | null) =>
+        value ? value.toFixed(2) : '';
+      const makeOrderKey = (
+        sheetSiteId: string | null,
+        type: string,
+        brandName: string,
+        modelCode: string | null,
+        productName: string,
+        quantity: number,
+        unitCost: Prisma.Decimal | null,
+        totalCost: Prisma.Decimal | null,
+        remark: string | null
+      ) =>
+        [
+          sheetSiteId ?? '',
+          normalizeOrderText(type),
+          normalizeOrderText(brandName),
+          normalizeOrderText(modelCode),
+          normalizeOrderText(productName),
+          String(quantity),
+          normalizeOrderDecimal(unitCost),
+          normalizeOrderDecimal(totalCost),
+          normalizeOrderText(remark),
+        ].join('|');
+      const importedOrderKeys = new Set<string>();
+
       for (const ws of wb.worksheets) {
         if (!ws.name.toLowerCase().startsWith('additional order')) continue;
 
         // Auto-map sheet → site (e.g. "Additional Order BKK" → BKK)
+        let aoSiteId: string | null = siteId;
         const keyword = ws.name
           .replace(/additional order\s*/i, '')
           .trim()
           .match(/[A-Za-z]+/)?.[0];
-        let aoSiteId: string | null = null;
         if (keyword) {
           const s = await prisma.site.findFirst({
             where: {
@@ -409,6 +440,10 @@ excelRouter.post(
             },
           });
           if (s) aoSiteId = s.id;
+          else {
+            errors.push(`Sheet "${ws.name}": ไม่พบ site ที่ตรงกับ "${keyword}" — ข้ามชีทนี้`);
+            continue;
+          }
         }
 
         // Find header row
@@ -494,6 +529,22 @@ excelRouter.post(
               ? new Prisma.Decimal(String(totalCostRaw))
               : null;
           const remark = String(aoCv(row, aoCol.remark) ?? '').trim() || null;
+          const orderKey = makeOrderKey(
+            aoSiteId,
+            type,
+            brandName,
+            modelCode,
+            productName,
+            quantity,
+            unitCost,
+            totalCost,
+            remark
+          );
+
+          if (importedOrderKeys.has(orderKey)) {
+            skipped++;
+            continue;
+          }
 
           const imageData = rowImageMap.get(r) ?? null;
 
@@ -503,6 +554,26 @@ excelRouter.post(
               : null;
             if (!brand && brandName)
               brand = await prisma.brand.create({ data: { name: brandName } });
+
+            const existingOrder = await prisma.additionalOrder.findFirst({
+              where: {
+                siteId: aoSiteId,
+                brandId: brand?.id ?? null,
+                type,
+                modelCode,
+                productName,
+                quantity,
+                unitCost,
+                totalCost,
+                remark,
+              },
+              select: { id: true },
+            });
+            if (existingOrder) {
+              importedOrderKeys.add(orderKey);
+              skipped++;
+              continue;
+            }
 
             await prisma.additionalOrder.create({
               data: {
@@ -519,6 +590,7 @@ excelRouter.post(
                 imageData,
               },
             });
+            importedOrderKeys.add(orderKey);
             ordersImported++;
           } catch (rowErr) {
             errors.push(`AO Row ${r} (${productName}): ${(rowErr as Error).message}`);
