@@ -350,7 +350,10 @@ function OrderFormDialog({
               {/* Status */}
               <div className="space-y-1">
                 <Label>สถานะ</Label>
-                <Select value={watch('status')} onValueChange={(v) => setValue('status', v)}>
+                <Select
+                  value={(watch('status') as string | undefined) ?? ''}
+                  onValueChange={(v) => setValue('status', v)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

@@ -305,7 +305,7 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
             <div className="space-y-1">
               <Label>Site *</Label>
               <Select
-                value={watch('siteId') as string | undefined}
+                value={(watch('siteId') as string | undefined) ?? ''}
                 onValueChange={(v) => setValue('siteId', v)}
               >
                 <SelectTrigger>
@@ -325,7 +325,7 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
             <div className="space-y-1">
               <Label>ประเภท *</Label>
               <Select
-                value={watch('equipmentTypeId') as string | undefined}
+                value={(watch('equipmentTypeId') as string | undefined) ?? ''}
                 onValueChange={(v) => setValue('equipmentTypeId', v)}
               >
                 <SelectTrigger>
@@ -347,7 +347,7 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
             <div className="space-y-1">
               <Label>Brand *</Label>
               <Select
-                value={watch('brandId') as string | undefined}
+                value={(watch('brandId') as string | undefined) ?? ''}
                 onValueChange={(v) => setValue('brandId', v)}
               >
                 <SelectTrigger>
@@ -480,7 +480,7 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
             <div className="space-y-1">
               <Label>Status *</Label>
               <Select
-                value={watch('status') as string | undefined}
+                value={(watch('status') as string | undefined) ?? ''}
                 onValueChange={(v) => setValue('status', v as StatusValue)}
               >
                 <SelectTrigger>

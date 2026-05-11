@@ -3,7 +3,12 @@
     "allow": [
       "Bash(pnpm --filter @spare-part/api build)",
       "Bash(git -C d:/spare-part-inventory_backup diff --stat HEAD apps/api/src/modules/excel/excel.router.ts apps/api/src/modules/additional-orders/additional-orders.router.ts apps/api/src/lib/additional-order-key.ts docs/ai-handoff.md)",
-      "Bash(git -C d:/spare-part-inventory_backup stash)"
+      "Bash(git -C d:/spare-part-inventory_backup stash)",
+      "Bash(git -C d:/spare-part-inventory_backup log --oneline -10 -- apps/api/src/middleware/auth.ts apps/api/src/lib/roles.ts apps/api/src/modules/excel/excel.router.ts)",
+      "Bash(git -C d:/spare-part-inventory_backup diff HEAD -- apps/api/src/middleware/auth.ts apps/api/src/lib/roles.ts)",
+      "Bash(git -C d:/spare-part-inventory_backup diff HEAD -- apps/api/src/modules/inventory/ apps/api/prisma/schema.prisma)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4000/api/spare-parts)",
+      "Bash(curl -s -i http://localhost:3001/api/spare-parts)"
     ]
   }
 }
