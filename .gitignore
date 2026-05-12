@@ -41,3 +41,4 @@ apps/api/uploads/
 
 # Coverage
 coverage/
+.vercel
