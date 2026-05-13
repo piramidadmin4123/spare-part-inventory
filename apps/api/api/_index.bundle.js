@@ -119571,7 +119571,14 @@ excelRouter.post(
             costRaw != null && costRaw !== ''
               ? new import_client4.Prisma.Decimal(String(costRaw))
               : null;
-          const status = mapStatus(cv(row, colMap.status));
+          const rawBorrowerName = String(cv(row, colMap.borrowerName) ?? '').trim();
+          const borrowerNameIsDate = /^\d+[/\-]\d+[/\-]\d+$/.test(rawBorrowerName);
+          const hasBorrowData =
+            (rawBorrowerName && !borrowerNameIsDate) ||
+            !!cv(row, colMap.borrowDateStart) ||
+            !!cv(row, colMap.borrowProject);
+          const mappedStatus = mapStatus(cv(row, colMap.status));
+          const status = mappedStatus === 'IN_SERVICE' && hasBorrowData ? 'BORROWED' : mappedStatus;
           const serialNumber = rawSerial || null;
           const macAddress = String(cv(row, colMap.macAddress) ?? '').trim() || null;
           const remark = rawRemark || null;
@@ -119656,22 +119663,23 @@ excelRouter.post(
               partId = cr.id;
               imported++;
             }
-            const borrowerName = String(cv(row, colMap.borrowerName) ?? '').trim();
-            const looksLikeDate = /^\d+[/\-]\d+[/\-]\d+$/.test(borrowerName);
-            if (borrowerName && !looksLikeDate) {
-              const cleanName = borrowerName.replace(/^[PN]'\s*/i, '').trim();
-              let borrower = await prisma.user.findFirst({
-                where: { name: { contains: cleanName, mode: 'insensitive' } },
-              });
-              if (!borrower && cleanName !== borrowerName) {
+            if (hasBorrowData) {
+              const cleanName = rawBorrowerName.replace(/^[PN]'\s*/i, '').trim();
+              let borrower = rawBorrowerName
+                ? await prisma.user.findFirst({
+                    where: { name: { contains: cleanName, mode: 'insensitive' } },
+                  })
+                : null;
+              if (!borrower && cleanName !== rawBorrowerName && rawBorrowerName) {
                 borrower = await prisma.user.findFirst({
-                  where: { name: { contains: borrowerName, mode: 'insensitive' } },
+                  where: { name: { contains: rawBorrowerName, mode: 'insensitive' } },
                 });
               }
               const borrowerId = borrower?.id ?? req.user.id;
-              const borrowerRemark = borrower
-                ? null
-                : `\u0E1C\u0E39\u0E49\u0E22\u0E37\u0E21 (\u0E19\u0E33\u0E40\u0E02\u0E49\u0E32): ${borrowerName}`;
+              const borrowerRemark =
+                rawBorrowerName && !borrower
+                  ? `\u0E1C\u0E39\u0E49\u0E22\u0E37\u0E21 (\u0E19\u0E33\u0E40\u0E02\u0E49\u0E32): ${rawBorrowerName}`
+                  : null;
               const dateStart = parseDate(cv(row, colMap.borrowDateStart));
               const dateEnd = parseDate(cv(row, colMap.borrowDateEnd));
               const borrowProject = String(cv(row, colMap.borrowProject) ?? '').trim() || null;
