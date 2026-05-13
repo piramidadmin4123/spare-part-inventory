@@ -26,9 +26,9 @@ const excelImageCache = new Map<string, ExcelImageAsset | null>();
 
 // ── Status mapping ────────────────────────────────────────────────────────────
 function mapStatus(raw: unknown): ItemStatus {
-  if (!raw) return 'IN_STOCK';
+  if (!raw) return 'IN_SERVICE';
   const s = String(raw).toLowerCase().trim();
-  if (s === 'in_stock' || s === 'in stock') return 'IN_STOCK';
+  if (s === 'in_stock' || s === 'in stock') return 'IN_SERVICE';
   if (s === 'borrowed') return 'BORROWED';
   if (s === 'maintenance') return 'MAINTENANCE';
   if (s === 'lost') return 'LOST';

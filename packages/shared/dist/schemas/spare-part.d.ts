@@ -125,7 +125,7 @@ export declare const sparePartQuerySchema: z.ZodObject<
     equipmentTypeId: z.ZodOptional<z.ZodString>;
     brandId: z.ZodOptional<z.ZodString>;
     status: z.ZodOptional<
-      z.ZodEnum<['IN_SERVICE', 'BORROWED', 'IN_STOCK', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED']>
+      z.ZodEnum<['IN_SERVICE', 'BORROWED', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED']>
     >;
     search: z.ZodOptional<z.ZodString>;
     page: z.ZodDefault<z.ZodNumber>;
@@ -140,28 +140,14 @@ export declare const sparePartQuerySchema: z.ZodObject<
     limit: number;
     sortBy: string;
     sortOrder: 'asc' | 'desc';
-    status?:
-      | 'IN_SERVICE'
-      | 'BORROWED'
-      | 'MAINTENANCE'
-      | 'LOST'
-      | 'DECOMMISSIONED'
-      | 'IN_STOCK'
-      | undefined;
+    status?: 'IN_SERVICE' | 'BORROWED' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED' | undefined;
     siteId?: string | undefined;
     equipmentTypeId?: string | undefined;
     brandId?: string | undefined;
     search?: string | undefined;
   },
   {
-    status?:
-      | 'IN_SERVICE'
-      | 'BORROWED'
-      | 'MAINTENANCE'
-      | 'LOST'
-      | 'DECOMMISSIONED'
-      | 'IN_STOCK'
-      | undefined;
+    status?: 'IN_SERVICE' | 'BORROWED' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED' | undefined;
     siteId?: string | undefined;
     equipmentTypeId?: string | undefined;
     brandId?: string | undefined;

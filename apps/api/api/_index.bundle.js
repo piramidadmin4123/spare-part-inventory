@@ -116270,7 +116270,7 @@ var sparePartQuerySchema = external_exports.object({
   equipmentTypeId: external_exports.string().uuid().optional(),
   brandId: external_exports.string().uuid().optional(),
   status: external_exports
-    .enum(['IN_SERVICE', 'BORROWED', 'IN_STOCK', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED'])
+    .enum(['IN_SERVICE', 'BORROWED', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED'])
     .optional(),
   search: external_exports.string().optional(),
   page: external_exports.coerce.number().int().min(1).default(1),
@@ -119302,9 +119302,9 @@ var upload = (0, import_multer.default)({
 });
 var excelImageCache = /* @__PURE__ */ new Map();
 function mapStatus(raw) {
-  if (!raw) return 'IN_STOCK';
+  if (!raw) return 'IN_SERVICE';
   const s = String(raw).toLowerCase().trim();
-  if (s === 'in_stock' || s === 'in stock') return 'IN_STOCK';
+  if (s === 'in_stock' || s === 'in stock') return 'IN_SERVICE';
   if (s === 'borrowed') return 'BORROWED';
   if (s === 'maintenance') return 'MAINTENANCE';
   if (s === 'lost') return 'LOST';

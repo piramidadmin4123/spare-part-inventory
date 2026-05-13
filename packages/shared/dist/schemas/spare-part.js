@@ -26,9 +26,7 @@ export const sparePartQuerySchema = z.object({
   siteId: z.string().uuid().optional(),
   equipmentTypeId: z.string().uuid().optional(),
   brandId: z.string().uuid().optional(),
-  status: z
-    .enum(['IN_SERVICE', 'BORROWED', 'IN_STOCK', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED'])
-    .optional(),
+  status: z.enum(['IN_SERVICE', 'BORROWED', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED']).optional(),
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
