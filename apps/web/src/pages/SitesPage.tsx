@@ -4,8 +4,7 @@ import { Card } from '@/components/ui/card';
 import { useSiteStats } from '@/features/master-data/useMasterData';
 
 const PART_STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  IN_STOCK: { label: 'In Stock', color: 'bg-green-100 text-green-700' },
-  IN_SERVICE: { label: 'In Service', color: 'bg-blue-100 text-blue-700' },
+  IN_SERVICE: { label: 'In Service', color: 'bg-green-100 text-green-700' },
   BORROWED: { label: 'Borrowed', color: 'bg-yellow-100 text-yellow-700' },
   MAINTENANCE: { label: 'Maintenance', color: 'bg-orange-100 text-orange-700' },
   LOST: { label: 'Lost', color: 'bg-red-100 text-red-700' },
@@ -123,17 +122,17 @@ export function SitesPage() {
               <p className="text-xs text-muted-foreground">ยังไม่มีข้อมูล</p>
             )}
 
-            {/* Progress bar — parts in service vs in stock */}
+            {/* Progress bar — active parts vs total */}
             {site.totalParts > 0 && (
               <div className="space-y-1">
                 <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>In Service / In Stock</span>
+                  <span>ใช้งาน / ทั้งหมด</span>
                   <span>
                     {(
                       (site.partsByStatus['IN_SERVICE'] ?? 0) +
                       (site.partsByStatus['BORROWED'] ?? 0)
                     ).toLocaleString()}{' '}
-                    / {(site.partsByStatus['IN_STOCK'] ?? 0).toLocaleString()}
+                    / {site.totalParts.toLocaleString()}
                   </span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">

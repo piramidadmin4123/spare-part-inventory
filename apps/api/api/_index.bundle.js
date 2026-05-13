@@ -120580,10 +120580,23 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
       }),
       prisma.sparePart.findMany({
         where: { status: { notIn: ['DECOMMISSIONED', 'LOST'] } },
-        select: { quantity: true, minStock: true },
+        select: { siteId: true, materialCode: true, modelCode: true, minStock: true },
       }),
     ]);
-    const lowStock = allNonRetiredParts.filter((p) => p.quantity <= p.minStock).length;
+    const groupCounts = /* @__PURE__ */ new Map();
+    for (const p of allNonRetiredParts) {
+      const key = `${p.siteId}::${p.materialCode ?? p.modelCode}`;
+      const existing = groupCounts.get(key);
+      if (existing) {
+        existing.count += 1;
+        if (p.minStock > existing.minStock) existing.minStock = p.minStock;
+      } else {
+        groupCounts.set(key, { count: 1, minStock: p.minStock });
+      }
+    }
+    const lowStock = Array.from(groupCounts.values()).filter(
+      (g) => g.minStock > 0 && g.count < g.minStock
+    ).length;
     res.json({
       totalParts,
       pendingBorrows,
@@ -120602,21 +120615,31 @@ dashboardRouter.get('/low-stock', async (_req, res, next) => {
     const parts = await prisma.sparePart.findMany({
       where: { status: { notIn: ['DECOMMISSIONED', 'LOST'] } },
       include: { site: true, brand: true },
-      orderBy: { quantity: 'asc' },
     });
-    const items = parts
-      .filter((p) => p.quantity <= p.minStock)
-      .slice(0, 15)
-      .map((p) => ({
-        id: p.id,
-        modelCode: p.modelCode,
-        productName: p.productName,
-        quantity: p.quantity,
-        minStock: p.minStock,
-        status: p.status,
-        siteCode: p.site.code,
-        brandName: p.brand.name,
-      }));
+    const groups = /* @__PURE__ */ new Map();
+    for (const p of parts) {
+      const key = `${p.siteId}::${p.materialCode ?? p.modelCode}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.count += 1;
+        if (p.minStock > existing.minStock) existing.minStock = p.minStock;
+      } else {
+        groups.set(key, {
+          key,
+          materialCode: p.materialCode,
+          modelCode: p.modelCode,
+          productName: p.productName,
+          siteCode: p.site.code,
+          brandName: p.brand.name,
+          count: 1,
+          minStock: p.minStock,
+        });
+      }
+    }
+    const items = Array.from(groups.values())
+      .filter((g) => g.minStock > 0 && g.count < g.minStock)
+      .sort((a, b) => a.count - b.count - (a.minStock - b.minStock))
+      .slice(0, 15);
     res.json(items);
   } catch (err) {
     next(err);

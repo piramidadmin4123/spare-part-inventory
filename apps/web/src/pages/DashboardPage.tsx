@@ -30,12 +30,12 @@ interface Summary {
 }
 
 interface LowStockItem {
-  id: string;
+  key: string;
+  materialCode: string | null;
   modelCode: string;
   productName: string;
-  quantity: number;
+  count: number;
   minStock: number;
-  status: string;
   siteCode: string;
   brandName: string;
 }
@@ -54,7 +54,6 @@ interface RecentBorrow {
 // ── Status configs ─────────────────────────────────────────────────────────
 
 const PART_STATUS_LABEL: Record<string, string> = {
-  IN_STOCK: 'คงคลัง',
   IN_SERVICE: 'ใช้งาน',
   BORROWED: 'ถูกยืม',
   MAINTENANCE: 'ซ่อม',
@@ -63,8 +62,7 @@ const PART_STATUS_LABEL: Record<string, string> = {
 };
 
 const PART_STATUS_COLOR: Record<string, string> = {
-  IN_STOCK: '#22c55e',
-  IN_SERVICE: '#3b82f6',
+  IN_SERVICE: '#22c55e',
   BORROWED: '#f59e0b',
   MAINTENANCE: '#8b5cf6',
   LOST: '#ef4444',
@@ -159,7 +157,7 @@ export function DashboardPage() {
     refetchInterval: 30_000,
   });
 
-  const inStock = summary?.byStatus.find((s) => s.status === 'IN_STOCK')?.count ?? 0;
+  const inService = summary?.byStatus.find((s) => s.status === 'IN_SERVICE')?.count ?? 0;
   const borrowed = summary?.byStatus.find((s) => s.status === 'BORROWED')?.count ?? 0;
 
   const pieData = (summary?.byStatus ?? [])
@@ -190,7 +188,7 @@ export function DashboardPage() {
             icon={Package}
             label="Spare Parts ทั้งหมด"
             value={summary?.totalParts ?? '—'}
-            sub={`คงคลัง ${inStock} ชิ้น`}
+            sub={`ใช้งานได้ ${inService} ชิ้น`}
             color="bg-blue-500"
           />
           <KpiCard
@@ -311,15 +309,17 @@ export function DashboardPage() {
             ) : (
               <div className="divide-y">
                 {lowStock.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between px-5 py-3">
+                  <div key={item.key} className="flex items-center justify-between px-5 py-3">
                     <div className="min-w-0">
-                      <p className="truncate font-mono text-xs font-medium">{item.modelCode}</p>
+                      <p className="truncate font-mono text-xs font-medium">
+                        {item.materialCode ?? item.modelCode}
+                      </p>
                       <p className="truncate text-xs text-muted-foreground">
                         {item.brandName} · {item.siteCode}
                       </p>
                     </div>
                     <div className="ml-4 text-right">
-                      <p className="text-sm font-bold text-red-500">{item.quantity}</p>
+                      <p className="text-sm font-bold text-red-500">{item.count}</p>
                       <p className="text-xs text-muted-foreground">min {item.minStock}</p>
                     </div>
                   </div>
