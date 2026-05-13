@@ -27537,7 +27537,7 @@ var require_application = __commonJS({
   ) {
     'use strict';
     var finalhandler = require_finalhandler();
-    var Router10 = require_router();
+    var Router12 = require_router();
     var methods = require_methods();
     var middleware = require_init();
     var query = require_query();
@@ -27607,7 +27607,7 @@ var require_application = __commonJS({
     };
     app2.lazyrouter = function lazyrouter() {
       if (!this._router) {
-        this._router = new Router10({
+        this._router = new Router12({
           caseSensitive: this.enabled('case sensitive routing'),
           strict: this.enabled('strict routing'),
         });
@@ -29567,7 +29567,7 @@ var require_express = __commonJS({
     var mixin = require_merge_descriptors();
     var proto = require_application();
     var Route = require_route();
-    var Router10 = require_router();
+    var Router12 = require_router();
     var req = require_request();
     var res = require_response();
     exports2 = module2.exports = createApplication;
@@ -29590,7 +29590,7 @@ var require_express = __commonJS({
     exports2.request = req;
     exports2.response = res;
     exports2.Route = Route;
-    exports2.Router = Router10;
+    exports2.Router = Router12;
     exports2.json = bodyParser.json;
     exports2.query = require_query();
     exports2.raw = bodyParser.raw;
@@ -110539,7 +110539,7 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // src/app.ts
-var import_express10 = __toESM(require_express2(), 1);
+var import_express12 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 
 // ../../node_modules/.pnpm/helmet@8.1.0/node_modules/helmet/index.mjs
@@ -116116,7 +116116,10 @@ var toIsoDatetime = external_exports
   .string()
   .refine((v) => v !== '' && !isNaN(new Date(v).getTime()), 'Invalid datetime')
   .transform((v) => new Date(v).toISOString());
-var borrowRequestSchema = external_exports.object({
+function isBefore(left, right) {
+  return new Date(left).getTime() < new Date(right).getTime();
+}
+var borrowRequestBaseSchema = external_exports.object({
   sparePartId: external_exports.string().uuid(),
   borrowerName: external_exports
     .string()
@@ -116133,6 +116136,16 @@ var borrowRequestSchema = external_exports.object({
   expectedReturn: toIsoDatetime.optional(),
   borrowerRemark: external_exports.string().optional(),
 });
+var borrowRequestSchema = borrowRequestBaseSchema.superRefine((data, ctx) => {
+  if (data.expectedReturn && isBefore(data.expectedReturn, data.dateStart)) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ['expectedReturn'],
+      message:
+        '\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E04\u0E32\u0E14\u0E27\u0E48\u0E32\u0E08\u0E30\u0E04\u0E37\u0E19\u0E15\u0E49\u0E2D\u0E07\u0E44\u0E21\u0E48\u0E01\u0E48\u0E2D\u0E19\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E40\u0E23\u0E34\u0E48\u0E21\u0E22\u0E37\u0E21',
+    });
+  }
+});
 var approveSchema = external_exports.object({
   approverRemark: external_exports.string().optional(),
 });
@@ -116146,7 +116159,7 @@ var rejectSchema = external_exports.object({
 var cancelSchema = external_exports.object({
   borrowerRemark: external_exports.string().optional(),
 });
-var editBorrowSchema = external_exports.object({
+var editBorrowBaseSchema = external_exports.object({
   borrowerName: external_exports
     .string()
     .min(
@@ -116163,6 +116176,16 @@ var editBorrowSchema = external_exports.object({
   dateStart: toIsoDatetime.optional(),
   expectedReturn: toIsoDatetime.optional(),
   borrowerRemark: external_exports.string().optional().nullable(),
+});
+var editBorrowSchema = editBorrowBaseSchema.superRefine((data, ctx) => {
+  if (data.dateStart && data.expectedReturn && isBefore(data.expectedReturn, data.dateStart)) {
+    ctx.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ['expectedReturn'],
+      message:
+        '\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E04\u0E32\u0E14\u0E27\u0E48\u0E32\u0E08\u0E30\u0E04\u0E37\u0E19\u0E15\u0E49\u0E2D\u0E07\u0E44\u0E21\u0E48\u0E01\u0E48\u0E2D\u0E19\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E40\u0E23\u0E34\u0E48\u0E21\u0E22\u0E37\u0E21',
+    });
+  }
 });
 
 // ../../packages/shared/dist/schemas/master-data.js
@@ -116184,6 +116207,18 @@ var createBrandSchema = external_exports.object({
   name: external_exports.string().min(1).max(100),
 });
 var updateBrandSchema = createBrandSchema.partial();
+
+// ../../packages/shared/dist/schemas/user.js
+var userRoleSchema = external_exports.enum([
+  'SUPER_ADMIN',
+  'ADMIN',
+  'MANAGER',
+  'TECHNICIAN',
+  'VIEWER',
+]);
+var updateUserRoleSchema = external_exports.object({
+  role: userRoleSchema,
+});
 
 // ../../packages/shared/dist/schemas/spare-part.js
 var createSparePartSchema = external_exports.object({
@@ -116213,6 +116248,7 @@ var createSparePartSchema = external_exports.object({
   ]),
   location: external_exports.string().max(100).optional().nullable(),
   remark: external_exports.string().optional().nullable(),
+  imageUrl: external_exports.string().optional().nullable(),
 });
 var updateSparePartSchema = createSparePartSchema.partial();
 var sparePartQuerySchema = external_exports.object({
@@ -116231,6 +116267,44 @@ var sparePartQuerySchema = external_exports.object({
 
 // src/middleware/auth.ts
 var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
+
+// src/lib/prisma.ts
+var import_client = require('@prisma/client');
+var globalForPrisma = globalThis;
+var prisma =
+  globalForPrisma.prisma ??
+  new import_client.PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  });
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
+
+// src/lib/roles.ts
+var SUPER_ADMIN_EMAILS = ['piramidadmin4123@gmail.com', 'pongsak@psolutions.co.th'];
+var SUPER_ADMIN_EMAIL_SET = new Set(SUPER_ADMIN_EMAILS);
+function isSuperAdminEmail(email) {
+  if (!email) return false;
+  return SUPER_ADMIN_EMAIL_SET.has(email.toLowerCase());
+}
+function resolveUserRole(email, role) {
+  return isSuperAdminEmail(email) ? 'SUPER_ADMIN' : role;
+}
+function isSuperAdminRole(role) {
+  return role === 'SUPER_ADMIN';
+}
+async function syncFixedSuperAdminRole(user) {
+  if (!isSuperAdminEmail(user.email) || user.role === 'SUPER_ADMIN') {
+    return user;
+  }
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { role: 'SUPER_ADMIN' },
+  });
+  return { ...user, role: 'SUPER_ADMIN' };
+}
+
+// src/middleware/auth.ts
 function requireAuth(req, _res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
@@ -116239,7 +116313,7 @@ function requireAuth(req, _res, next) {
   const token = authHeader.slice(7);
   try {
     const payload = import_jsonwebtoken.default.verify(token, process.env.JWT_SECRET);
-    req.user = payload;
+    req.user = { ...payload, role: resolveUserRole(payload.email, payload.role) };
     next();
   } catch {
     throw new AppError(401, 'UNAUTHORIZED', 'Invalid or expired token');
@@ -116250,7 +116324,7 @@ function requireRole(...roles) {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Authentication required');
     }
-    if (!roles.includes(req.user.role)) {
+    if (!isSuperAdminRole(req.user.role) && !roles.includes(req.user.role)) {
       throw new AppError(403, 'FORBIDDEN', 'Insufficient permissions');
     }
     next();
@@ -117806,18 +117880,6 @@ function createRemoteJWKSet(url, options) {
   return remoteJWKSet;
 }
 
-// src/lib/prisma.ts
-var import_client = require('@prisma/client');
-var globalForPrisma = globalThis;
-var prisma =
-  globalForPrisma.prisma ??
-  new import_client.PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  });
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
-
 // src/modules/auth/auth.service.ts
 var JWT_SECRET = process.env.JWT_SECRET;
 var JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '7d';
@@ -117836,9 +117898,10 @@ async function login(input) {
   if (!valid) {
     throw new AppError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect');
   }
-  const accessToken = signToken({ id: user.id, email: user.email, role: user.role });
+  const role = resolveUserRole(user.email, user.role);
+  const accessToken = signToken({ id: user.id, email: user.email, role });
   const { passwordHash: _2, ...safeUser } = user;
-  return { user: safeUser, accessToken };
+  return { user: await syncFixedSuperAdminRole({ ...safeUser, role }), accessToken };
 }
 async function register(input) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
@@ -117846,18 +117909,19 @@ async function register(input) {
     throw new AppError(409, 'CONFLICT', 'Email already registered');
   }
   const passwordHash = await import_bcrypt.default.hash(input.password, 12);
+  const role = resolveUserRole(input.email, 'TECHNICIAN');
   const user = await prisma.user.create({
     data: {
       email: input.email,
       name: input.name,
       phone: input.phone,
       passwordHash,
-      role: 'TECHNICIAN',
+      role,
     },
   });
   const accessToken = signToken({ id: user.id, email: user.email, role: user.role });
   const { passwordHash: _2, ...safeUser } = user;
-  return { user: safeUser, accessToken };
+  return { user: await syncFixedSuperAdminRole(safeUser), accessToken };
 }
 async function getMe(userId) {
   const user = await prisma.user.findUnique({
@@ -117865,7 +117929,7 @@ async function getMe(userId) {
     omit: { passwordHash: true },
   });
   if (!user) throw new AppError(404, 'NOT_FOUND', 'User not found');
-  return user;
+  return syncFixedSuperAdminRole({ ...user, role: resolveUserRole(user.email, user.role) });
 }
 async function updateProfile(userId, input) {
   const user = await prisma.user.update({
@@ -117873,7 +117937,7 @@ async function updateProfile(userId, input) {
     data: input,
     omit: { passwordHash: true },
   });
-  return user;
+  return syncFixedSuperAdminRole({ ...user, role: resolveUserRole(user.email, user.role) });
 }
 var AZURE_TENANT_ID = process.env.AZURE_TENANT_ID;
 var AZURE_CLIENT_ID = process.env.AZURE_CLIENT_ID;
@@ -117916,12 +117980,13 @@ async function loginWithMicrosoft(idToken) {
   });
   if (!user) {
     const displayName = claims.name ?? email.split('@')[0];
+    const role2 = resolveUserRole(email, 'ADMIN');
     user = await prisma.user.create({
       data: {
         email,
         name: displayName,
         microsoftId,
-        role: 'ADMIN',
+        role: role2,
         isActive: true,
       },
     });
@@ -117935,9 +118000,10 @@ async function loginWithMicrosoft(idToken) {
       data: { microsoftId },
     });
   }
-  const accessToken = signToken({ id: user.id, email: user.email, role: user.role });
+  const role = resolveUserRole(user.email, user.role);
+  const accessToken = signToken({ id: user.id, email: user.email, role });
   const { passwordHash: _2, ...safeUser } = user;
-  return { user: safeUser, accessToken };
+  return { user: await syncFixedSuperAdminRole({ ...safeUser, role }), accessToken };
 }
 
 // src/modules/auth/auth.router.ts
@@ -118288,8 +118354,39 @@ inventoryRouter.get('/', async (req, res, next) => {
       }),
       prisma.sparePart.count({ where }),
     ]);
+    const serialNumbers = Array.from(
+      new Set(data.map((part) => part.serialNumber).filter((serialNumber) => !!serialNumber))
+    );
+    const duplicateSitesBySerial = /* @__PURE__ */ new Map();
+    if (serialNumbers.length > 0) {
+      const duplicateRows = await prisma.sparePart.findMany({
+        where: { serialNumber: { in: serialNumbers } },
+        select: {
+          serialNumber: true,
+          site: { select: { id: true, code: true, name: true } },
+        },
+      });
+      for (const row of duplicateRows) {
+        if (!row.serialNumber) continue;
+        if (!duplicateSitesBySerial.has(row.serialNumber)) {
+          duplicateSitesBySerial.set(row.serialNumber, /* @__PURE__ */ new Map());
+        }
+        duplicateSitesBySerial.get(row.serialNumber).set(row.site.id, row.site);
+      }
+    }
+    const dataWithDuplicates = data.map((part) => {
+      const duplicateSites = part.serialNumber
+        ? Array.from(duplicateSitesBySerial.get(part.serialNumber)?.values() ?? []).filter(
+            (site) => site.id !== part.siteId
+          )
+        : [];
+      return {
+        ...part,
+        duplicateSites: duplicateSites.length > 0 ? duplicateSites : void 0,
+      };
+    });
     res.json({
-      data,
+      data: dataWithDuplicates,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
@@ -118312,8 +118409,8 @@ inventoryRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res, next
     if (!parsed.success)
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid input', parsed.error.issues);
     if (parsed.data.serialNumber) {
-      const exists = await prisma.sparePart.findUnique({
-        where: { serialNumber: parsed.data.serialNumber },
+      const exists = await prisma.sparePart.findFirst({
+        where: { siteId: parsed.data.siteId, serialNumber: parsed.data.serialNumber },
       });
       if (exists) throw new AppError(409, 'CONFLICT', 'Serial number already exists');
     }
@@ -118335,9 +118432,11 @@ inventoryRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, 
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid input', parsed.error.issues);
     const part = await prisma.sparePart.findUnique({ where: { id } });
     if (!part) throw new AppError(404, 'NOT_FOUND', 'Spare part not found');
-    if (parsed.data.serialNumber && parsed.data.serialNumber !== part.serialNumber) {
-      const exists = await prisma.sparePart.findUnique({
-        where: { serialNumber: parsed.data.serialNumber },
+    const nextSiteId = parsed.data.siteId ?? part.siteId;
+    const nextSerialNumber = parsed.data.serialNumber ?? part.serialNumber;
+    if (nextSerialNumber) {
+      const exists = await prisma.sparePart.findFirst({
+        where: { siteId: nextSiteId, serialNumber: nextSerialNumber },
       });
       if (exists) throw new AppError(409, 'CONFLICT', 'Serial number already exists');
     }
@@ -118395,9 +118494,15 @@ var EXTRA_NOTIFY_EMAILS = (process.env.NOTIFY_EMAILS ?? '')
   .map((e) => e.trim())
   .filter(Boolean);
 var APP_URL = process.env.APP_URL ?? 'http://localhost:5173';
+var BORROW_PAGE_URL = 'https://spare-part-inventory-web.vercel.app/borrow';
 async function getAdminEmails() {
   const users = await prisma.user.findMany({
-    where: { role: { in: ['ADMIN', 'MANAGER'] } },
+    where: {
+      OR: [
+        { role: { in: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] } },
+        { email: { in: [...SUPER_ADMIN_EMAILS] } },
+      ],
+    },
     select: { email: true },
   });
   const dbEmails = users.map((u) => u.email).filter(Boolean);
@@ -118506,7 +118611,7 @@ async function notifyNewBorrow(info) {
         '\u{1F4CB} \u0E04\u0E33\u0E02\u0E2D\u0E22\u0E37\u0E21\u0E43\u0E2B\u0E21\u0E48 \u0E23\u0E2D\u0E2D\u0E19\u0E38\u0E21\u0E31\u0E15\u0E34',
       text: `**${info.borrowerName}** \u0E02\u0E2D\u0E22\u0E37\u0E21 **${info.modelCode}**`,
       facts,
-      actionUrl: `${APP_URL}/borrow`,
+      actionUrl: BORROW_PAGE_URL,
       actionLabel:
         '\u0E2D\u0E19\u0E38\u0E21\u0E31\u0E15\u0E34 / \u0E1B\u0E0F\u0E34\u0E40\u0E2A\u0E18',
       themeColor: 'F59E0B',
@@ -118518,8 +118623,7 @@ async function notifyNewBorrow(info) {
         title:
           '\u0E21\u0E35\u0E04\u0E33\u0E02\u0E2D\u0E22\u0E37\u0E21 Spare Part \u0E43\u0E2B\u0E21\u0E48',
         rows: facts.map((f) => ({ label: f.name, value: f.value })),
-        bodyText:
-          '\u0E01\u0E23\u0E38\u0E13\u0E32\u0E40\u0E02\u0E49\u0E32\u0E23\u0E30\u0E1A\u0E1A\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E2D\u0E19\u0E38\u0E21\u0E31\u0E15\u0E34\u0E2B\u0E23\u0E37\u0E2D\u0E1B\u0E0F\u0E34\u0E40\u0E2A\u0E18\u0E04\u0E33\u0E02\u0E2D',
+        bodyText: `\u0E01\u0E23\u0E38\u0E13\u0E32\u0E40\u0E02\u0E49\u0E32\u0E23\u0E30\u0E1A\u0E1A\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E2D\u0E19\u0E38\u0E21\u0E31\u0E15\u0E34\u0E2B\u0E23\u0E37\u0E2D\u0E1B\u0E0F\u0E34\u0E40\u0E2A\u0E18\u0E04\u0E33\u0E02\u0E2D<br/><a href="${BORROW_PAGE_URL}" target="_blank" rel="noreferrer" style="display:inline-block;margin-top:10px;padding:10px 14px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">\u0E44\u0E1B\u0E2B\u0E19\u0E49\u0E32 \u0E22\u0E37\u0E21 / \u0E04\u0E37\u0E19</a>`,
       }),
   ]);
 }
@@ -118559,7 +118663,6 @@ async function notifyBorrowApproved(info) {
   ]);
 }
 async function notifyBorrowRejected(info) {
-  const adminEmails = await getAdminEmails();
   const facts = [
     {
       name: '\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C',
@@ -118569,9 +118672,7 @@ async function notifyBorrowRejected(info) {
     { name: '\u0E1C\u0E39\u0E49\u0E1B\u0E0F\u0E34\u0E40\u0E2A\u0E18', value: info.approverName },
     ...(info.reason ? [{ name: '\u0E40\u0E2B\u0E15\u0E38\u0E1C\u0E25', value: info.reason }] : []),
   ];
-  const emailTargets = [...(info.borrowerEmail ? [info.borrowerEmail] : []), ...adminEmails].filter(
-    (v, i, a) => a.indexOf(v) === i
-  );
+  const emailTargets = info.borrowerEmail ? [info.borrowerEmail] : [];
   await Promise.all([
     sendTeams({
       title:
@@ -118599,7 +118700,19 @@ async function notifyBorrowReturned(info) {
     },
     { name: 'Site', value: info.siteCode },
     { name: '\u0E1C\u0E39\u0E49\u0E04\u0E37\u0E19', value: info.borrowerName },
+    ...(info.overdueDays && info.overdueDays > 0
+      ? [
+          {
+            name: '\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E04\u0E37\u0E19',
+            value: `\u0E25\u0E48\u0E32\u0E0A\u0E49\u0E32 ${info.overdueDays} \u0E27\u0E31\u0E19`,
+          },
+        ]
+      : []),
   ];
+  const subject =
+    info.overdueDays && info.overdueDays > 0
+      ? `[\u0E04\u0E37\u0E19\u0E41\u0E25\u0E49\u0E27 | \u0E25\u0E48\u0E32\u0E0A\u0E49\u0E32 ${info.overdueDays} \u0E27\u0E31\u0E19] ${info.modelCode} \u2014 ${info.borrowerName}`
+      : `[\u0E04\u0E37\u0E19\u0E41\u0E25\u0E49\u0E27] ${info.modelCode} \u2014 ${info.borrowerName}`;
   await Promise.all([
     sendTeams({
       title:
@@ -118611,17 +118724,46 @@ async function notifyBorrowReturned(info) {
     adminEmails.length > 0 &&
       sendEmail({
         to: adminEmails,
-        subject: `[\u0E04\u0E37\u0E19\u0E41\u0E25\u0E49\u0E27] ${info.modelCode} \u2014 ${info.borrowerName}`,
+        subject,
         title:
           '\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E16\u0E39\u0E01\u0E04\u0E37\u0E19\u0E40\u0E02\u0E49\u0E32\u0E23\u0E30\u0E1A\u0E1A\u0E41\u0E25\u0E49\u0E27',
         rows: facts.map((f) => ({ label: f.name, value: f.value })),
+        ...(info.overdueDays && info.overdueDays > 0
+          ? {
+              bodyText: `\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E19\u0E35\u0E49\u0E16\u0E39\u0E01\u0E04\u0E37\u0E19\u0E25\u0E48\u0E32\u0E0A\u0E49\u0E32 <strong>${info.overdueDays}</strong> \u0E27\u0E31\u0E19`,
+            }
+          : {}),
       }),
   ]);
+}
+
+// src/lib/audit.ts
+var import_client2 = require('@prisma/client');
+function toJsonValue(value) {
+  if (value === void 0) return void 0;
+  if (value === null) return import_client2.Prisma.DbNull;
+  return JSON.parse(JSON.stringify(value));
+}
+async function recordAuditLog(input) {
+  await prisma.auditLog.create({
+    data: {
+      userId: input.userId ?? null,
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      oldValue: toJsonValue(input.oldValue),
+      newValue: toJsonValue(input.newValue),
+      ipAddress: input.ipAddress ?? null,
+    },
+  });
 }
 
 // src/modules/borrow/borrow.router.ts
 var borrowRouter = (0, import_express6.Router)();
 borrowRouter.use(requireAuth);
+function isBefore2(left, right) {
+  return Boolean(left && right && left.getTime() < right.getTime());
+}
 var borrowInclude = {
   sparePart: { include: { site: true, equipmentType: true, brand: true } },
   borrower: { select: { id: true, name: true, email: true, role: true } },
@@ -118669,6 +118811,12 @@ borrowRouter.post('/', requireRole('ADMIN', 'MANAGER', 'TECHNICIAN'), async (req
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid input', parsed.error.issues);
     const part = await prisma.sparePart.findUnique({ where: { id: parsed.data.sparePartId } });
     if (!part) throw new AppError(404, 'NOT_FOUND', 'Spare part not found');
+    if (part.status !== 'IN_SERVICE')
+      throw new AppError(
+        409,
+        'CONFLICT',
+        '\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E19\u0E35\u0E49\u0E44\u0E21\u0E48\u0E2D\u0E22\u0E39\u0E48\u0E43\u0E19\u0E2A\u0E16\u0E32\u0E19\u0E30 In Service \u0E08\u0E36\u0E07\u0E44\u0E21\u0E48\u0E2A\u0E32\u0E21\u0E32\u0E23\u0E16\u0E22\u0E37\u0E21\u0E44\u0E14\u0E49'
+      );
     if (part.quantity < 1)
       throw new AppError(409, 'INSUFFICIENT_STOCK', 'No stock available to borrow');
     const active = await prisma.borrowTransaction.findFirst({
@@ -118680,6 +118828,7 @@ borrowRouter.post('/', requireRole('ADMIN', 'MANAGER', 'TECHNICIAN'), async (req
       data: {
         sparePartId: parsed.data.sparePartId,
         borrowerId: req.user.id,
+        borrowDestination: parsed.data.borrowDestination,
         borrowerName: parsed.data.borrowerName,
         borrowerEmail: parsed.data.borrowerEmail,
         project: parsed.data.project,
@@ -118712,14 +118861,37 @@ borrowRouter.patch('/:id', async (req, res, next) => {
     if (tx.status !== 'PENDING')
       throw new AppError(409, 'CONFLICT', 'Only PENDING requests can be edited');
     const user = req.user;
-    if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
+    if (tx.borrowerId !== user.id)
       throw new AppError(403, 'FORBIDDEN', 'You can only edit your own requests');
     const parsed = editBorrowSchema.safeParse(req.body);
     if (!parsed.success)
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid input', parsed.error.issues);
+    const nextDateStart =
+      parsed.data.dateStart !== void 0 ? new Date(parsed.data.dateStart) : tx.dateStart;
+    const nextExpectedReturn =
+      parsed.data.expectedReturn !== void 0
+        ? new Date(parsed.data.expectedReturn)
+        : tx.expectedReturn;
+    if (isBefore2(nextExpectedReturn, nextDateStart)) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        '\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E04\u0E32\u0E14\u0E27\u0E48\u0E32\u0E08\u0E30\u0E04\u0E37\u0E19\u0E15\u0E49\u0E2D\u0E07\u0E44\u0E21\u0E48\u0E01\u0E48\u0E2D\u0E19\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E40\u0E23\u0E34\u0E48\u0E21\u0E22\u0E37\u0E21',
+        [
+          {
+            path: 'expectedReturn',
+            message:
+              '\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E04\u0E32\u0E14\u0E27\u0E48\u0E32\u0E08\u0E30\u0E04\u0E37\u0E19\u0E15\u0E49\u0E2D\u0E07\u0E44\u0E21\u0E48\u0E01\u0E48\u0E2D\u0E19\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E40\u0E23\u0E34\u0E48\u0E21\u0E22\u0E37\u0E21',
+          },
+        ]
+      );
+    }
     const updated = await prisma.borrowTransaction.update({
       where: { id },
       data: {
+        ...(parsed.data.borrowDestination !== void 0 && {
+          borrowDestination: parsed.data.borrowDestination,
+        }),
         ...(parsed.data.borrowerName !== void 0 && { borrowerName: parsed.data.borrowerName }),
         ...(parsed.data.borrowerEmail !== void 0 && {
           borrowerEmail: parsed.data.borrowerEmail,
@@ -118742,17 +118914,45 @@ borrowRouter.patch('/:id', async (req, res, next) => {
     next(err);
   }
 });
-borrowRouter.delete('/:id', async (req, res, next) => {
+borrowRouter.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
   try {
     const id = req.params.id;
-    const tx = await prisma.borrowTransaction.findUnique({ where: { id } });
+    const tx = await prisma.borrowTransaction.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        sparePartId: true,
+        borrowerId: true,
+        approverId: true,
+        borrowerRemark: true,
+        approverRemark: true,
+      },
+    });
     if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
-    if (tx.status !== 'PENDING')
+    const canForceDelete = isSuperAdminRole(req.user?.role);
+    if (tx.status !== 'PENDING' && !canForceDelete)
       throw new AppError(409, 'CONFLICT', 'Only PENDING requests can be deleted');
-    const user = req.user;
-    if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
-      throw new AppError(403, 'FORBIDDEN', 'You can only delete your own requests');
-    await prisma.borrowTransaction.delete({ where: { id } });
+    if (tx.status === 'APPROVED') {
+      await prisma.$transaction([
+        prisma.sparePart.update({
+          where: { id: tx.sparePartId },
+          data: { status: 'IN_SERVICE', quantity: { increment: 1 } },
+        }),
+        prisma.borrowTransaction.delete({ where: { id } }),
+      ]);
+    } else {
+      await prisma.borrowTransaction.delete({ where: { id } });
+    }
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'DELETE',
+      entityType: 'BorrowTransaction',
+      entityId: tx.id,
+      oldValue: tx,
+      newValue: null,
+      ipAddress: req.ip,
+    }).catch(() => {});
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -118789,6 +118989,15 @@ borrowRouter.patch('/:id/approve', requireRole('ADMIN', 'MANAGER'), async (req, 
         data: { status: 'BORROWED', quantity: { decrement: 1 } },
       }),
     ]);
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'APPROVE',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: { status: tx.status, sparePartId: tx.sparePartId },
+      newValue: { status: updated.status, sparePartId: updated.sparePart.id },
+      ipAddress: req.ip,
+    }).catch(() => {});
     res.json(updated);
     notifyBorrowApproved({
       id: updated.id,
@@ -118823,6 +119032,15 @@ borrowRouter.patch('/:id/reject', requireRole('ADMIN', 'MANAGER'), async (req, r
       },
       include: borrowInclude,
     });
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'REJECT',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: { status: tx.status, sparePartId: tx.sparePartId },
+      newValue: { status: updated.status, sparePartId: updated.sparePart.id },
+      ipAddress: req.ip,
+    }).catch(() => {});
     res.json(updated);
     notifyBorrowRejected({
       id: updated.id,
@@ -118839,6 +119057,57 @@ borrowRouter.patch('/:id/reject', requireRole('ADMIN', 'MANAGER'), async (req, r
     next(err);
   }
 });
+borrowRouter.patch('/:id/restore', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const tx = await prisma.borrowTransaction.findUnique({ where: { id } });
+    if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
+    if (tx.status !== 'REJECTED')
+      throw new AppError(
+        409,
+        'CONFLICT',
+        `Cannot restore a transaction with status "${tx.status}"`
+      );
+    const active = await prisma.borrowTransaction.findFirst({
+      where: {
+        id: { not: id },
+        sparePartId: tx.sparePartId,
+        status: { in: ['PENDING', 'APPROVED'] },
+      },
+    });
+    if (active)
+      throw new AppError(409, 'CONFLICT', 'This item already has an active borrow request');
+    const updated = await prisma.borrowTransaction.update({
+      where: { id },
+      data: {
+        status: 'PENDING',
+        approverId: null,
+        approverRemark: null,
+      },
+      include: borrowInclude,
+    });
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'RESTORE',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: {
+        status: tx.status,
+        approverId: tx.approverId,
+        approverRemark: tx.approverRemark,
+      },
+      newValue: {
+        status: updated.status,
+        approverId: updated.approverId,
+        approverRemark: updated.approverRemark,
+      },
+      ipAddress: req.ip,
+    }).catch(() => {});
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
 borrowRouter.patch('/:id/return', async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -118849,6 +119118,28 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
     if (!tx) throw new AppError(404, 'NOT_FOUND', 'Borrow transaction not found');
     if (tx.status !== 'APPROVED')
       throw new AppError(409, 'CONFLICT', `Cannot return a transaction with status "${tx.status}"`);
+    const actualReturn = new Date(parsed.data.actualReturn);
+    if (tx.dateStart && actualReturn < tx.dateStart) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        '\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E04\u0E37\u0E19\u0E15\u0E49\u0E2D\u0E07\u0E44\u0E21\u0E48\u0E01\u0E48\u0E2D\u0E19\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E22\u0E37\u0E21',
+        [
+          {
+            path: 'actualReturn',
+            message:
+              '\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E04\u0E37\u0E19\u0E15\u0E49\u0E2D\u0E07\u0E44\u0E21\u0E48\u0E01\u0E48\u0E2D\u0E19\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48\u0E22\u0E37\u0E21',
+          },
+        ]
+      );
+    }
+    const overdueDays =
+      tx.expectedReturn && actualReturn > tx.expectedReturn
+        ? Math.max(
+            1,
+            Math.ceil((actualReturn.getTime() - tx.expectedReturn.getTime()) / (1e3 * 60 * 60 * 24))
+          )
+        : 0;
     const user = req.user;
     if (user.role === 'TECHNICIAN' && tx.borrowerId !== user.id)
       throw new AppError(403, 'FORBIDDEN', 'You can only return your own borrows');
@@ -118857,16 +119148,33 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
         where: { id },
         data: {
           status: 'RETURNED',
-          actualReturn: new Date(parsed.data.actualReturn),
+          actualReturn,
           borrowerRemark: parsed.data.borrowerRemark ?? tx.borrowerRemark,
         },
         include: borrowInclude,
       }),
       prisma.sparePart.update({
         where: { id: tx.sparePartId },
-        data: { status: 'IN_STOCK', quantity: { increment: 1 } },
+        data: { status: 'IN_SERVICE', quantity: { increment: 1 } },
       }),
     ]);
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'RETURN',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: {
+        status: tx.status,
+        actualReturn: tx.actualReturn,
+        expectedReturn: tx.expectedReturn,
+      },
+      newValue: {
+        status: updated.status,
+        actualReturn: updated.actualReturn,
+        expectedReturn: updated.expectedReturn,
+      },
+      ipAddress: req.ip,
+    }).catch(() => {});
     res.json(updated);
     notifyBorrowReturned({
       id: updated.id,
@@ -118876,6 +119184,7 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
       borrowerName: updated.borrowerName ?? updated.borrower.name,
       borrowerEmail: updated.borrowerEmail ?? updated.borrower.email,
       project: updated.project,
+      overdueDays,
     }).catch(() => {});
   } catch (err) {
     next(err);
@@ -118902,6 +119211,15 @@ borrowRouter.patch('/:id/cancel', async (req, res, next) => {
       },
       include: borrowInclude,
     });
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'CANCEL',
+      entityType: 'BorrowTransaction',
+      entityId: updated.id,
+      oldValue: { status: tx.status, borrowerRemark: tx.borrowerRemark },
+      newValue: { status: updated.status, borrowerRemark: updated.borrowerRemark },
+      ipAddress: req.ip,
+    }).catch(() => {});
     res.json(updated);
   } catch (err) {
     next(err);
@@ -118912,13 +119230,52 @@ borrowRouter.patch('/:id/cancel', async (req, res, next) => {
 var import_express7 = __toESM(require_express2(), 1);
 var import_multer = __toESM(require_multer(), 1);
 var import_exceljs = __toESM(require_excel(), 1);
-var import_client2 = require('@prisma/client');
+var import_client4 = require('@prisma/client');
+
+// src/lib/additional-order-key.ts
+var import_client3 = require('@prisma/client');
+function normalizeText(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+function normalizeQuantity(value) {
+  const parsed = Number(String(value ?? '1'));
+  if (!Number.isFinite(parsed)) return '1';
+  const normalized = Math.trunc(parsed);
+  return String(normalized || 1);
+}
+function normalizeDecimal(value) {
+  if (value == null || value === '') return '';
+  try {
+    return new import_client3.Prisma.Decimal(value).toFixed(2);
+  } catch {
+    return normalizeText(value);
+  }
+}
+function buildAdditionalOrderKey(input) {
+  return [
+    normalizeText(input.siteId),
+    normalizeText(input.brandName),
+    normalizeText(input.type),
+    normalizeText(input.modelCode),
+    normalizeText(input.productName),
+    normalizeQuantity(input.quantity),
+    normalizeDecimal(input.unitCost),
+    normalizeDecimal(input.totalCost),
+    normalizeText(input.remark),
+  ].join('|');
+}
+
+// src/modules/excel/excel.router.ts
 var excelRouter = (0, import_express7.Router)();
 excelRouter.use(requireAuth);
 var upload = (0, import_multer.default)({
   storage: import_multer.default.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
+var excelImageCache = /* @__PURE__ */ new Map();
 function mapStatus(raw) {
   if (!raw) return 'IN_STOCK';
   const s = String(raw).toLowerCase().trim();
@@ -118929,6 +119286,73 @@ function mapStatus(raw) {
   if (s === 'decommissioned') return 'DECOMMISSIONED';
   return 'IN_SERVICE';
 }
+function resolveExcelImageAsset(imageUrl) {
+  if (!imageUrl) return null;
+  const cached = excelImageCache.get(imageUrl);
+  if (cached !== void 0) return cached;
+  const match = /^data:(image\/[\w.+-]+);base64,(.*)$/i.exec(imageUrl.trim());
+  if (!match) {
+    excelImageCache.set(imageUrl, null);
+    return null;
+  }
+  const mime = match[1].toLowerCase();
+  let extension = null;
+  if (mime === 'image/png') extension = 'png';
+  else if (mime === 'image/jpeg' || mime === 'image/jpg') extension = 'jpeg';
+  else if (mime === 'image/gif') extension = 'gif';
+  if (!extension) {
+    excelImageCache.set(imageUrl, null);
+    return null;
+  }
+  const asset = {
+    buffer: Buffer.from(match[2], 'base64'),
+    extension,
+  };
+  excelImageCache.set(imageUrl, asset);
+  return asset;
+}
+function truncateLabel(value, max = 60) {
+  const v = value.trim();
+  if (v.length <= max) return v;
+  return v.slice(0, max - 1) + '\u2026';
+}
+var FIELD_LABELS_TH = {
+  serialNumber: 'Serial Number',
+  macAddress: 'MAC Address',
+  modelCode: '\u0E23\u0E2B\u0E31\u0E2A\u0E23\u0E38\u0E48\u0E19 (Model Code)',
+  materialCode: '\u0E23\u0E2B\u0E31\u0E2A\u0E27\u0E31\u0E2A\u0E14\u0E38 (Material Code)',
+  email: '\u0E2D\u0E35\u0E40\u0E21\u0E25',
+  code: '\u0E23\u0E2B\u0E31\u0E2A',
+  name: '\u0E0A\u0E37\u0E48\u0E2D',
+};
+function thaiFieldLabel(fields) {
+  return fields
+    .split(',')
+    .map((f) => f.trim())
+    .map((f) => FIELD_LABELS_TH[f] ?? f)
+    .join(', ');
+}
+function describeRowError(rowErr) {
+  if (rowErr instanceof import_client4.Prisma.PrismaClientKnownRequestError) {
+    if (rowErr.code === 'P2002') {
+      const target = rowErr.meta?.target;
+      const fields = Array.isArray(target) ? target.join(', ') : (target ?? '');
+      const label = fields ? thaiFieldLabel(fields) : '';
+      return label
+        ? `\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E43\u0E19\u0E0A\u0E48\u0E2D\u0E07 "${label}" \u0E0B\u0E49\u0E33\u0E01\u0E31\u0E1A\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E17\u0E35\u0E48\u0E21\u0E35\u0E2D\u0E22\u0E39\u0E48\u0E41\u0E25\u0E49\u0E27\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A \u0E08\u0E36\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E41\u0E16\u0E27\u0E19\u0E35\u0E49 \u2014 \u0E42\u0E1B\u0E23\u0E14\u0E15\u0E23\u0E27\u0E08\u0E44\u0E1F\u0E25\u0E4C Excel \u0E27\u0E48\u0E32\u0E01\u0E23\u0E2D\u0E01\u0E04\u0E48\u0E32\u0E0B\u0E49\u0E33\u0E2B\u0E23\u0E37\u0E2D\u0E44\u0E21\u0E48 \u0E2B\u0E23\u0E37\u0E2D\u0E41\u0E01\u0E49\u0E44\u0E02\u0E04\u0E48\u0E32\u0E43\u0E2B\u0E49\u0E44\u0E21\u0E48\u0E0B\u0E49\u0E33\u0E01\u0E48\u0E2D\u0E19 Import \u0E43\u0E2B\u0E21\u0E48`
+        : '\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E41\u0E16\u0E27\u0E19\u0E35\u0E49\u0E0B\u0E49\u0E33\u0E01\u0E31\u0E1A\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E17\u0E35\u0E48\u0E21\u0E35\u0E2D\u0E22\u0E39\u0E48\u0E41\u0E25\u0E49\u0E27\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A \u0E08\u0E36\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01 \u2014 \u0E42\u0E1B\u0E23\u0E14\u0E15\u0E23\u0E27\u0E08\u0E44\u0E1F\u0E25\u0E4C Excel \u0E27\u0E48\u0E32\u0E21\u0E35\u0E04\u0E48\u0E32\u0E0B\u0E49\u0E33\u0E2B\u0E23\u0E37\u0E2D\u0E44\u0E21\u0E48';
+    }
+    if (rowErr.code === 'P2003') {
+      return '\u0E41\u0E16\u0E27\u0E19\u0E35\u0E49\u0E2D\u0E49\u0E32\u0E07\u0E16\u0E36\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E17\u0E35\u0E48\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A (\u0E40\u0E0A\u0E48\u0E19 \u0E44\u0E0B\u0E15\u0E4C / \u0E41\u0E1A\u0E23\u0E19\u0E14\u0E4C / \u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E17\u0E35\u0E48\u0E23\u0E30\u0E1A\u0E38) \u2014 \u0E42\u0E1B\u0E23\u0E14\u0E2A\u0E23\u0E49\u0E32\u0E07\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E17\u0E35\u0E48\u0E2D\u0E49\u0E32\u0E07\u0E16\u0E36\u0E07\u0E01\u0E48\u0E2D\u0E19 \u0E2B\u0E23\u0E37\u0E2D\u0E41\u0E01\u0E49\u0E04\u0E48\u0E32\u0E43\u0E19\u0E44\u0E1F\u0E25\u0E4C Excel \u0E43\u0E2B\u0E49\u0E15\u0E23\u0E07\u0E01\u0E31\u0E1A\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E17\u0E35\u0E48\u0E21\u0E35\u0E2D\u0E22\u0E39\u0E48';
+    }
+    if (rowErr.code === 'P2025') {
+      return '\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E17\u0E35\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E41\u0E01\u0E49\u0E44\u0E02\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A \u2014 \u0E2D\u0E32\u0E08\u0E16\u0E39\u0E01\u0E25\u0E1A\u0E44\u0E1B\u0E23\u0E30\u0E2B\u0E27\u0E48\u0E32\u0E07\u0E01\u0E32\u0E23 Import \u0E42\u0E1B\u0E23\u0E14\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48';
+    }
+    return `\u0E23\u0E30\u0E1A\u0E1A\u0E10\u0E32\u0E19\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E1B\u0E0F\u0E34\u0E40\u0E2A\u0E18\u0E01\u0E32\u0E23\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E41\u0E16\u0E27\u0E19\u0E35\u0E49 (\u0E23\u0E2B\u0E31\u0E2A\u0E20\u0E32\u0E22\u0E43\u0E19 ${rowErr.code}) \u2014 \u0E42\u0E1B\u0E23\u0E14\u0E2A\u0E48\u0E07\u0E20\u0E32\u0E1E\u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E19\u0E35\u0E49\u0E43\u0E2B\u0E49\u0E17\u0E35\u0E21\u0E1E\u0E31\u0E12\u0E19\u0E32\u0E15\u0E23\u0E27\u0E08\u0E2A\u0E2D\u0E1A`;
+  }
+  if (rowErr instanceof Error) return rowErr.message;
+  return String(rowErr);
+}
 excelRouter.post(
   '/import',
   requireRole('ADMIN', 'MANAGER'),
@@ -118937,9 +119361,8 @@ excelRouter.post(
     try {
       if (!req.file) throw new AppError(400, 'VALIDATION_ERROR', 'No file uploaded');
       const siteId = req.body.siteId;
-      if (!siteId) throw new AppError(400, 'VALIDATION_ERROR', 'siteId is required');
-      const site = await prisma.site.findUnique({ where: { id: siteId } });
-      if (!site) throw new AppError(404, 'NOT_FOUND', 'Site not found');
+      const baseSite = siteId ? await prisma.site.findUnique({ where: { id: siteId } }) : null;
+      if (siteId && !baseSite) throw new AppError(404, 'NOT_FOUND', 'Site not found');
       const wb = new import_exceljs.default.Workbook();
       const buf = req.file.buffer;
       const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
@@ -118949,7 +119372,14 @@ excelRouter.post(
       let skipped = 0;
       let borrowsImported = 0;
       const errors = [];
+      const warnings = [];
+      const warningKeys = /* @__PURE__ */ new Set();
       const sheetsProcessed = [];
+      const pushWarning = (key, message2) => {
+        if (warningKeys.has(key)) return;
+        warningKeys.add(key);
+        warnings.push(message2);
+      };
       const parseDate = (raw) => {
         if (!raw) return null;
         if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw;
@@ -118960,7 +119390,7 @@ excelRouter.post(
       };
       for (const ws of wb.worksheets) {
         if (!ws.name.toLowerCase().startsWith('spare parts')) continue;
-        let sheetSiteId = siteId;
+        let sheetSiteId = baseSite?.id ?? null;
         const sheetSuffix = ws.name.replace(/spare parts\s*/i, '').trim();
         const allKeywords = sheetSuffix.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [];
         const englishKeyword = allKeywords.join(' ').trim() || null;
@@ -118995,14 +119425,25 @@ excelRouter.post(
             sheetSiteId = matched.id;
             sheetsProcessed.push(`"${ws.name}" \u2192 ${matched.code}`);
           } else {
+            if (!sheetSiteId) {
+              errors.push(
+                `\u0E0A\u0E35\u0E17 "${ws.name}": \u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E44\u0E0B\u0E15\u0E4C\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E15\u0E23\u0E07\u0E01\u0E31\u0E1A\u0E0A\u0E37\u0E48\u0E2D "${englishKeyword}" \u0E41\u0E25\u0E30\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E40\u0E25\u0E37\u0E2D\u0E01 "\u0E44\u0E0B\u0E15\u0E4C\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19" \u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32 Import \u2014 \u0E08\u0E36\u0E07\u0E02\u0E49\u0E32\u0E21\u0E17\u0E31\u0E49\u0E07\u0E0A\u0E35\u0E17\u0E19\u0E35\u0E49\u0E17\u0E38\u0E01\u0E41\u0E16\u0E27 \u0E27\u0E34\u0E18\u0E35\u0E41\u0E01\u0E49: (1) \u0E2A\u0E23\u0E49\u0E32\u0E07\u0E44\u0E0B\u0E15\u0E4C "${englishKeyword}" \u0E43\u0E19\u0E40\u0E21\u0E19\u0E39\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E44\u0E0B\u0E15\u0E4C\u0E01\u0E48\u0E2D\u0E19 \u0E2B\u0E23\u0E37\u0E2D (2) \u0E40\u0E25\u0E37\u0E2D\u0E01\u0E44\u0E0B\u0E15\u0E4C\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19\u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32 Import \u0E41\u0E25\u0E49\u0E27\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48`
+              );
+              continue;
+            }
+            sheetsProcessed.push(
+              `"${ws.name}" \u2192 (\u0E43\u0E0A\u0E49 site \u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19)`
+            );
+          }
+        } else {
+          if (!sheetSiteId) {
             errors.push(
-              `Sheet "${ws.name}": \u0E44\u0E21\u0E48\u0E1E\u0E1A site \u0E17\u0E35\u0E48\u0E15\u0E23\u0E07\u0E01\u0E31\u0E1A "${englishKeyword}" \u2014 \u0E02\u0E49\u0E32\u0E21\u0E0A\u0E35\u0E17\u0E19\u0E35\u0E49`
+              `\u0E0A\u0E35\u0E17 "${ws.name}": \u0E43\u0E19\u0E0A\u0E37\u0E48\u0E2D\u0E0A\u0E35\u0E17\u0E44\u0E21\u0E48\u0E21\u0E35\u0E04\u0E33\u0E17\u0E35\u0E48\u0E1A\u0E2D\u0E01\u0E44\u0E14\u0E49\u0E27\u0E48\u0E32\u0E40\u0E1B\u0E47\u0E19\u0E44\u0E0B\u0E15\u0E4C\u0E44\u0E2B\u0E19 \u0E41\u0E25\u0E30\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E40\u0E25\u0E37\u0E2D\u0E01 "\u0E44\u0E0B\u0E15\u0E4C\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19" \u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32 Import \u2014 \u0E08\u0E36\u0E07\u0E02\u0E49\u0E32\u0E21\u0E17\u0E31\u0E49\u0E07\u0E0A\u0E35\u0E17\u0E19\u0E35\u0E49\u0E17\u0E38\u0E01\u0E41\u0E16\u0E27 \u0E27\u0E34\u0E18\u0E35\u0E41\u0E01\u0E49: \u0E40\u0E25\u0E37\u0E2D\u0E01\u0E44\u0E0B\u0E15\u0E4C\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19\u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32 Import \u0E41\u0E25\u0E49\u0E27\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48 \u0E2B\u0E23\u0E37\u0E2D\u0E40\u0E1B\u0E25\u0E35\u0E48\u0E22\u0E19\u0E0A\u0E37\u0E48\u0E2D\u0E0A\u0E35\u0E17\u0E43\u0E2B\u0E49\u0E21\u0E35\u0E23\u0E2B\u0E31\u0E2A\u0E44\u0E0B\u0E15\u0E4C \u0E40\u0E0A\u0E48\u0E19 "Spare Parts BKK"`
             );
             continue;
           }
-        } else {
           sheetsProcessed.push(
-            `"${ws.name}" \u2192 (\u0E43\u0E0A\u0E49 site \u0E17\u0E35\u0E48\u0E40\u0E25\u0E37\u0E2D\u0E01: ${site.code})`
+            `"${ws.name}" \u2192 (\u0E43\u0E0A\u0E49 site \u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19)`
           );
         }
         let headerRow = -1;
@@ -119051,6 +119492,21 @@ excelRouter.post(
           if (v && typeof v === 'object' && 'result' in v) return v.result;
           return v;
         };
+        const rowImageMap = /* @__PURE__ */ new Map();
+        const wbMedia = wb.model?.media;
+        if (wbMedia) {
+          for (const placement of ws.getImages()) {
+            const nativeRow = placement.range?.tl?.nativeRow;
+            if (nativeRow == null) continue;
+            const oneIndexedRow = nativeRow + 1;
+            const imgMedia = wbMedia[placement.imageId];
+            if (!imgMedia?.buffer) continue;
+            rowImageMap.set(
+              oneIndexedRow,
+              `data:image/${imgMedia.extension};base64,${imgMedia.buffer.toString('base64')}`
+            );
+          }
+        }
         for (let r = headerRow + 1; r <= ws.rowCount; r++) {
           const row = ws.getRow(r);
           const typeCode = String(cv(row, colMap.type) ?? '').trim();
@@ -119088,12 +119544,30 @@ excelRouter.post(
           const costRaw = cv(row, colMap.cost);
           const cost =
             costRaw != null && costRaw !== ''
-              ? new import_client2.Prisma.Decimal(String(costRaw))
+              ? new import_client4.Prisma.Decimal(String(costRaw))
               : null;
           const status = mapStatus(cv(row, colMap.status));
           const serialNumber = rawSerial || null;
           const macAddress = String(cv(row, colMap.macAddress) ?? '').trim() || null;
           const remark = rawRemark || null;
+          const imageUrl = rowImageMap.get(r) ?? void 0;
+          const crossSiteDuplicate = serialNumber
+            ? await prisma.sparePart.findFirst({
+                where: {
+                  serialNumber,
+                  siteId: { not: sheetSiteId },
+                },
+                select: {
+                  site: { select: { code: true, name: true } },
+                },
+              })
+            : null;
+          if (crossSiteDuplicate) {
+            pushWarning(
+              `${sheetSiteId}:${serialNumber}:${crossSiteDuplicate.site.code}`,
+              `\u0E41\u0E16\u0E27 ${r}: Serial Number "${serialNumber}" \u0E21\u0E35\u0E2D\u0E22\u0E39\u0E48\u0E41\u0E25\u0E49\u0E27\u0E43\u0E19\u0E44\u0E0B\u0E15\u0E4C ${crossSiteDuplicate.site.code} \u0E23\u0E30\u0E1A\u0E1A\u0E08\u0E36\u0E07\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E41\u0E16\u0E27\u0E19\u0E35\u0E49\u0E40\u0E1B\u0E47\u0E19\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E43\u0E2B\u0E21\u0E48\u0E02\u0E2D\u0E07\u0E44\u0E0B\u0E15\u0E4C\u0E1B\u0E31\u0E08\u0E08\u0E38\u0E1A\u0E31\u0E19\u0E43\u0E2B\u0E49\u0E41\u0E17\u0E19 \u2014 \u0E16\u0E49\u0E32\u0E40\u0E1B\u0E47\u0E19\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E15\u0E31\u0E27\u0E40\u0E14\u0E35\u0E22\u0E27\u0E01\u0E31\u0E19\u0E17\u0E35\u0E48\u0E22\u0E49\u0E32\u0E22\u0E44\u0E0B\u0E15\u0E4C \u0E42\u0E1B\u0E23\u0E14\u0E40\u0E02\u0E49\u0E32\u0E44\u0E1B\u0E25\u0E1A\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E40\u0E14\u0E34\u0E21\u0E43\u0E19\u0E44\u0E0B\u0E15\u0E4C ${crossSiteDuplicate.site.code} \u0E2D\u0E2D\u0E01\u0E40\u0E2D\u0E07 (\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C: ${truncateLabel(productName, 50)})`
+            );
+          }
           try {
             const resolvedTypeCode = typeCode || 'Unknown';
             let equipmentType = await prisma.equipmentType.findFirst({
@@ -119110,7 +119584,9 @@ excelRouter.post(
               brand = await prisma.brand.create({ data: { name: resolvedBrandName } });
             }
             const existing = serialNumber
-              ? await prisma.sparePart.findFirst({ where: { serialNumber } })
+              ? await prisma.sparePart.findFirst({
+                  where: { siteId: sheetSiteId, serialNumber },
+                })
               : null;
             let partId;
             if (existing) {
@@ -119129,6 +119605,7 @@ excelRouter.post(
                   serialNumber,
                   macAddress,
                   remark,
+                  ...(imageUrl && { imageUrl }),
                 },
               });
               partId = up.id;
@@ -119148,6 +119625,7 @@ excelRouter.post(
                   serialNumber,
                   macAddress,
                   remark,
+                  imageUrl,
                 },
               });
               partId = cr.id;
@@ -119193,18 +119671,21 @@ excelRouter.post(
               }
             }
           } catch (rowErr) {
-            errors.push(`Row ${r} (${productName}): ${rowErr.message}`);
+            errors.push(
+              `\u0E41\u0E16\u0E27 ${r} (\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C: ${truncateLabel(productName, 50)}) \u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E44\u0E21\u0E48\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08: ${describeRowError(rowErr)}`
+            );
           }
         }
       }
       let ordersImported = 0;
+      const importedOrderKeys = /* @__PURE__ */ new Set();
       for (const ws of wb.worksheets) {
         if (!ws.name.toLowerCase().startsWith('additional order')) continue;
+        let aoSiteId = siteId ?? null;
         const keyword = ws.name
           .replace(/additional order\s*/i, '')
           .trim()
           .match(/[A-Za-z]+/)?.[0];
-        let aoSiteId = null;
         if (keyword) {
           const s = await prisma.site.findFirst({
             where: {
@@ -119215,6 +119696,12 @@ excelRouter.post(
             },
           });
           if (s) aoSiteId = s.id;
+          else {
+            errors.push(
+              `\u0E0A\u0E35\u0E17 "${ws.name}" (Additional Order): \u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E44\u0E0B\u0E15\u0E4C\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E15\u0E23\u0E07\u0E01\u0E31\u0E1A "${keyword}" \u2014 \u0E08\u0E36\u0E07\u0E02\u0E49\u0E32\u0E21\u0E17\u0E31\u0E49\u0E07\u0E0A\u0E35\u0E17\u0E19\u0E35\u0E49 \u0E27\u0E34\u0E18\u0E35\u0E41\u0E01\u0E49: \u0E2A\u0E23\u0E49\u0E32\u0E07\u0E44\u0E0B\u0E15\u0E4C "${keyword}" \u0E43\u0E19\u0E40\u0E21\u0E19\u0E39\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E44\u0E0B\u0E15\u0E4C\u0E01\u0E48\u0E2D\u0E19 \u0E41\u0E25\u0E49\u0E27\u0E25\u0E2D\u0E07 Import \u0E43\u0E2B\u0E21\u0E48`
+            );
+            continue;
+          }
         }
         let aoHeader = -1;
         for (let r = 1; r <= 10; r++) {
@@ -119233,6 +119720,35 @@ excelRouter.post(
           }
         }
         if (aoHeader < 0) continue;
+        const existingOrders = await prisma.additionalOrder.findMany({
+          where: { siteId: aoSiteId },
+          select: {
+            siteId: true,
+            type: true,
+            modelCode: true,
+            productName: true,
+            quantity: true,
+            unitCost: true,
+            totalCost: true,
+            remark: true,
+            brand: { select: { name: true } },
+          },
+        });
+        const existingOrderKeys = new Set(
+          existingOrders.map((order) =>
+            buildAdditionalOrderKey({
+              siteId: order.siteId,
+              brandName: order.brand?.name ?? null,
+              type: order.type,
+              modelCode: order.modelCode,
+              productName: order.productName,
+              quantity: order.quantity,
+              unitCost: order.unitCost,
+              totalCost: order.totalCost,
+              remark: order.remark,
+            })
+          )
+        );
         const aoCol = {};
         ws.getRow(aoHeader).eachCell((cell, col) => {
           const v = String(cell.value ?? '')
@@ -119261,7 +119777,6 @@ excelRouter.post(
             const nativeRow = placement.range?.tl?.nativeRow;
             if (nativeRow == null) continue;
             const oneIndexedRow = nativeRow + 1;
-            if (rowImageMap.has(oneIndexedRow)) continue;
             const imgMedia = wbMedia[placement.imageId];
             if (!imgMedia?.buffer) continue;
             rowImageMap.set(
@@ -119283,14 +119798,29 @@ excelRouter.post(
           const unitCostRaw = aoCv(row, aoCol.unitCost);
           const unitCost =
             unitCostRaw != null && unitCostRaw !== ''
-              ? new import_client2.Prisma.Decimal(String(unitCostRaw))
+              ? new import_client4.Prisma.Decimal(String(unitCostRaw))
               : null;
           const totalCostRaw = aoCv(row, aoCol.totalCost);
           const totalCost =
             totalCostRaw != null && totalCostRaw !== ''
-              ? new import_client2.Prisma.Decimal(String(totalCostRaw))
+              ? new import_client4.Prisma.Decimal(String(totalCostRaw))
               : null;
           const remark = String(aoCv(row, aoCol.remark) ?? '').trim() || null;
+          const orderKey = buildAdditionalOrderKey({
+            siteId: aoSiteId,
+            brandName,
+            type,
+            modelCode,
+            productName,
+            quantity,
+            unitCost,
+            totalCost,
+            remark,
+          });
+          if (importedOrderKeys.has(orderKey) || existingOrderKeys.has(orderKey)) {
+            skipped++;
+            continue;
+          }
           const imageData = rowImageMap.get(r) ?? null;
           try {
             let brand = brandName
@@ -119313,9 +119843,12 @@ excelRouter.post(
                 imageData,
               },
             });
+            importedOrderKeys.add(orderKey);
             ordersImported++;
           } catch (rowErr) {
-            errors.push(`AO Row ${r} (${productName}): ${rowErr.message}`);
+            errors.push(
+              `\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E2A\u0E31\u0E48\u0E07\u0E0B\u0E37\u0E49\u0E2D\u0E40\u0E1E\u0E34\u0E48\u0E21 \u0E41\u0E16\u0E27 ${r} (\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32: ${truncateLabel(productName, 50)}) \u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E44\u0E21\u0E48\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08: ${describeRowError(rowErr)}`
+            );
           }
         }
       }
@@ -119326,6 +119859,7 @@ excelRouter.post(
         ordersImported,
         borrowsImported,
         errors,
+        warnings,
         sheetsProcessed,
       });
     } catch (err) {
@@ -119336,6 +119870,20 @@ excelRouter.post(
 );
 excelRouter.get('/export', async (req, res, next) => {
   try {
+    let getImageId2 = function (imageUrl) {
+      if (!imageUrl) return null;
+      const asset = resolveExcelImageAsset(imageUrl);
+      if (!asset) return null;
+      const cachedId = workbookImageIdCache.get(imageUrl);
+      if (cachedId !== void 0) return cachedId;
+      const imageId = wb.addImage({
+        buffer: asset.buffer,
+        extension: asset.extension,
+      });
+      workbookImageIdCache.set(imageUrl, imageId);
+      return imageId;
+    };
+    var getImageId = getImageId2;
     const { siteId, equipmentTypeId, brandId, status, search } = req.query;
     const where = {
       ...(siteId && { siteId }),
@@ -119390,8 +119938,12 @@ excelRouter.get('/export', async (req, res, next) => {
       fgColor: { argb: 'FFFFFF00' },
     };
     const fmtDate = (d) => (d ? d.toISOString().slice(0, 10) : '');
+    const workbookImageIdCache = /* @__PURE__ */ new Map();
     const buildSheet = (ws, titleText, rows, withSite) => {
-      const totalCols = withSite ? 17 : 16;
+      const imageCol = 2;
+      const totalCols = withSite ? 18 : 17;
+      const borrowStart = withSite ? 15 : 14;
+      const codeColIdx = withSite ? 7 : 6;
       for (let r = 1; r <= 3; r++) {
         ws.mergeCells(r, 1, r, totalCols);
         const cell = ws.getCell(r, 1);
@@ -119402,7 +119954,6 @@ excelRouter.get('/export', async (req, res, next) => {
       }
       ws.getRow(4).height = 19.5;
       ws.getRow(5).height = 19.5;
-      const borrowStart = withSite ? 14 : 13;
       ws.mergeCells(6, borrowStart, 6, totalCols);
       const lblCell = ws.getCell(6, borrowStart);
       lblCell.value =
@@ -119412,6 +119963,7 @@ excelRouter.get('/export', async (req, res, next) => {
       const headers = withSite
         ? [
             'No',
+            'Image',
             'Site',
             'Type',
             'Brand',
@@ -119431,6 +119983,7 @@ excelRouter.get('/export', async (req, res, next) => {
           ]
         : [
             'No',
+            'Image',
             'Type',
             'Brand',
             'Material Code',
@@ -119448,8 +120001,8 @@ excelRouter.get('/export', async (req, res, next) => {
             'Project',
           ];
       const boldSet = withSite
-        ? /* @__PURE__ */ new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 13])
-        : /* @__PURE__ */ new Set([1, 2, 3, 4, 5, 6, 7, 8, 12]);
+        ? /* @__PURE__ */ new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14])
+        : /* @__PURE__ */ new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 13]);
       const hRow = ws.getRow(7);
       hRow.height = 55.35;
       headers.forEach((h, i) => {
@@ -119463,22 +120016,23 @@ excelRouter.get('/export', async (req, res, next) => {
       });
       const widths = withSite
         ? [
-            10.55, 18, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55, 27.44,
-            27.55, 15.55, 15.55, 30.55,
+            10.55, 14.5, 18, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55,
+            27.44, 27.55, 15.55, 15.55, 30.55,
           ]
         : [
-            10.55, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55, 27.44,
-            27.55, 15.55, 15.55, 30.55,
+            10.55, 14.5, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55,
+            27.44, 27.55, 15.55, 15.55, 30.55,
           ];
       widths.forEach((w, i) => {
         ws.getColumn(i + 1).width = w;
       });
-      const codeColIdx = withSite ? 6 : 5;
       rows.forEach((p, idx) => {
         const activeBorrow = p.borrowTransactions[0] ?? null;
+        const imageId = getImageId2(p.imageUrl);
         const values = withSite
           ? [
               idx + 1,
+              '',
               p.site.code,
               p.equipmentType.code,
               p.brand.name,
@@ -119498,6 +120052,7 @@ excelRouter.get('/export', async (req, res, next) => {
             ]
           : [
               idx + 1,
+              '',
               p.equipmentType.code,
               p.brand.name,
               p.materialCode ?? '',
@@ -119524,6 +120079,12 @@ excelRouter.get('/export', async (req, res, next) => {
           cell.alignment = { vertical: 'middle', wrapText: true };
           if (c === codeColIdx && v) cell.fill = CODE_FILL;
         });
+        if (imageId != null) {
+          ws.addImage(imageId, {
+            tl: { col: imageCol - 1 + 0.12, row: dRow.number - 1 + 0.08 },
+            ext: { width: 48, height: 48 },
+          });
+        }
       });
     };
     if (siteId) {
@@ -119767,7 +120328,7 @@ excelRouter.post(
                 : await prisma.sparePart.findFirst({ where: { modelCode } });
               if (!sparePart) {
                 errors.push(
-                  `Row ${r} [${ws.name}]: \u0E44\u0E21\u0E48\u0E1E\u0E1A spare part (${serialNumber || modelCode})`
+                  `\u0E41\u0E16\u0E27 ${r} [\u0E0A\u0E35\u0E17 ${ws.name}]: \u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E21\u0E35 Serial Number / \u0E23\u0E2B\u0E31\u0E2A\u0E23\u0E38\u0E48\u0E19 "${serialNumber || modelCode}" \u2014 \u0E23\u0E30\u0E1A\u0E1A\u0E08\u0E36\u0E07\u0E44\u0E21\u0E48\u0E2A\u0E32\u0E21\u0E32\u0E23\u0E16\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E22\u0E37\u0E21\u0E41\u0E16\u0E27\u0E19\u0E35\u0E49\u0E44\u0E14\u0E49 \u0E27\u0E34\u0E18\u0E35\u0E41\u0E01\u0E49: \u0E40\u0E1E\u0E34\u0E48\u0E21\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E15\u0E31\u0E27\u0E19\u0E35\u0E49\u0E40\u0E02\u0E49\u0E32\u0E23\u0E30\u0E1A\u0E1A\u0E01\u0E48\u0E2D\u0E19 \u0E2B\u0E23\u0E37\u0E2D\u0E41\u0E01\u0E49\u0E04\u0E48\u0E32\u0E43\u0E19\u0E44\u0E1F\u0E25\u0E4C Excel \u0E43\u0E2B\u0E49\u0E15\u0E23\u0E07\u0E01\u0E31\u0E1A\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E17\u0E35\u0E48\u0E21\u0E35\u0E2D\u0E22\u0E39\u0E48`
                 );
                 continue;
               }
@@ -119806,7 +120367,9 @@ excelRouter.post(
               });
               imported++;
             } catch (rowErr) {
-              errors.push(`Row ${r} [${ws.name}]: ${rowErr.message}`);
+              errors.push(
+                `\u0E41\u0E16\u0E27 ${r} [\u0E0A\u0E35\u0E17 ${ws.name}] \u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E22\u0E37\u0E21\u0E44\u0E21\u0E48\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08: ${describeRowError(rowErr)}`
+              );
             }
           }
           continue;
@@ -119865,7 +120428,9 @@ excelRouter.post(
           try {
             const borrower = await prisma.user.findUnique({ where: { email: borrowerEmail } });
             if (!borrower) {
-              errors.push(`Row ${r}: \u0E44\u0E21\u0E48\u0E1E\u0E1A user (${borrowerEmail})`);
+              errors.push(
+                `\u0E41\u0E16\u0E27 ${r}: \u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E21\u0E35\u0E2D\u0E35\u0E40\u0E21\u0E25 "${borrowerEmail}" \u2014 \u0E23\u0E30\u0E1A\u0E1A\u0E08\u0E36\u0E07\u0E44\u0E21\u0E48\u0E2A\u0E32\u0E21\u0E32\u0E23\u0E16\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E22\u0E37\u0E21\u0E41\u0E16\u0E27\u0E19\u0E35\u0E49\u0E44\u0E14\u0E49 \u0E27\u0E34\u0E18\u0E35\u0E41\u0E01\u0E49: \u0E2A\u0E23\u0E49\u0E32\u0E07\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49\u0E17\u0E35\u0E48\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E15\u0E23\u0E07\u0E01\u0E31\u0E19\u0E01\u0E48\u0E2D\u0E19 \u0E2B\u0E23\u0E37\u0E2D\u0E41\u0E01\u0E49\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E43\u0E19\u0E44\u0E1F\u0E25\u0E4C Excel \u0E43\u0E2B\u0E49\u0E15\u0E23\u0E07\u0E01\u0E31\u0E1A\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49\u0E17\u0E35\u0E48\u0E21\u0E35\u0E2D\u0E22\u0E39\u0E48`
+              );
               continue;
             }
             const serialNumber = String(cv(row, colMap.serialNumber) ?? '').trim();
@@ -119873,7 +120438,9 @@ excelRouter.post(
               ? await prisma.sparePart.findFirst({ where: { serialNumber } })
               : await prisma.sparePart.findFirst({ where: { modelCode } });
             if (!sparePart) {
-              errors.push(`Row ${r}: \u0E44\u0E21\u0E48\u0E1E\u0E1A spare part (${modelCode})`);
+              errors.push(
+                `\u0E41\u0E16\u0E27 ${r}: \u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A\u0E17\u0E35\u0E48\u0E21\u0E35\u0E23\u0E2B\u0E31\u0E2A\u0E23\u0E38\u0E48\u0E19 "${modelCode}" \u2014 \u0E23\u0E30\u0E1A\u0E1A\u0E08\u0E36\u0E07\u0E44\u0E21\u0E48\u0E2A\u0E32\u0E21\u0E32\u0E23\u0E16\u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E22\u0E37\u0E21\u0E41\u0E16\u0E27\u0E19\u0E35\u0E49\u0E44\u0E14\u0E49 \u0E27\u0E34\u0E18\u0E35\u0E41\u0E01\u0E49: \u0E40\u0E1E\u0E34\u0E48\u0E21\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E15\u0E31\u0E27\u0E19\u0E35\u0E49\u0E40\u0E02\u0E49\u0E32\u0E23\u0E30\u0E1A\u0E1A\u0E01\u0E48\u0E2D\u0E19 \u0E2B\u0E23\u0E37\u0E2D\u0E41\u0E01\u0E49\u0E23\u0E2B\u0E31\u0E2A\u0E23\u0E38\u0E48\u0E19\u0E43\u0E19\u0E44\u0E1F\u0E25\u0E4C Excel \u0E43\u0E2B\u0E49\u0E15\u0E23\u0E07\u0E01\u0E31\u0E1A\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C\u0E17\u0E35\u0E48\u0E21\u0E35\u0E2D\u0E22\u0E39\u0E48`
+              );
               continue;
             }
             await prisma.borrowTransaction.create({
@@ -119891,7 +120458,9 @@ excelRouter.post(
             });
             imported++;
           } catch (rowErr) {
-            errors.push(`Row ${r}: ${rowErr.message}`);
+            errors.push(
+              `\u0E41\u0E16\u0E27 ${r} \u0E1A\u0E31\u0E19\u0E17\u0E36\u0E01\u0E01\u0E32\u0E23\u0E22\u0E37\u0E21\u0E44\u0E21\u0E48\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08: ${describeRowError(rowErr)}`
+            );
           }
         }
       }
@@ -119954,21 +120523,47 @@ var dashboardRouter = (0, import_express8.Router)();
 dashboardRouter.use(requireAuth);
 dashboardRouter.get('/summary', async (_req, res, next) => {
   try {
-    const [totalParts, byStatus, pendingBorrows, borrowByStatus, allNonRetiredParts] =
-      await Promise.all([
-        prisma.sparePart.count(),
-        prisma.sparePart.groupBy({ by: ['status'], _count: { id: true } }),
-        prisma.borrowTransaction.count({ where: { status: 'PENDING' } }),
-        prisma.borrowTransaction.groupBy({ by: ['status'], _count: { id: true } }),
-        prisma.sparePart.findMany({
-          where: { status: { notIn: ['DECOMMISSIONED', 'LOST'] } },
-          select: { quantity: true, minStock: true },
-        }),
-      ]);
+    const now = /* @__PURE__ */ new Date();
+    const [
+      totalParts,
+      byStatus,
+      pendingBorrows,
+      borrowByStatus,
+      overdueItems,
+      overdueBorrowers,
+      allNonRetiredParts,
+    ] = await Promise.all([
+      prisma.sparePart.count(),
+      prisma.sparePart.groupBy({ by: ['status'], _count: { id: true } }),
+      prisma.borrowTransaction.count({ where: { status: 'PENDING' } }),
+      prisma.borrowTransaction.groupBy({ by: ['status'], _count: { id: true } }),
+      prisma.borrowTransaction.count({
+        where: {
+          status: 'APPROVED',
+          expectedReturn: { lt: now },
+          actualReturn: null,
+        },
+      }),
+      prisma.borrowTransaction.groupBy({
+        by: ['borrowerId'],
+        where: {
+          status: 'APPROVED',
+          expectedReturn: { lt: now },
+          actualReturn: null,
+        },
+        _count: { _all: true },
+      }),
+      prisma.sparePart.findMany({
+        where: { status: { notIn: ['DECOMMISSIONED', 'LOST'] } },
+        select: { quantity: true, minStock: true },
+      }),
+    ]);
     const lowStock = allNonRetiredParts.filter((p) => p.quantity <= p.minStock).length;
     res.json({
       totalParts,
       pendingBorrows,
+      overdueItems,
+      overdueBorrowers: overdueBorrowers.length,
       lowStock,
       byStatus: byStatus.map((s) => ({ status: s.status, count: s._count.id })),
       borrowByStatus: borrowByStatus.map((s) => ({ status: s.status, count: s._count.id })),
@@ -120021,7 +120616,7 @@ dashboardRouter.get('/recent-borrows', async (_req, res, next) => {
 
 // src/modules/additional-orders/additional-orders.router.ts
 var import_express9 = __toESM(require_express2(), 1);
-var import_client3 = require('@prisma/client');
+var import_client5 = require('@prisma/client');
 var additionalOrdersRouter = (0, import_express9.Router)();
 additionalOrdersRouter.use(requireAuth);
 additionalOrdersRouter.get('/', async (req, res, next) => {
@@ -120095,10 +120690,52 @@ async function resolveBrand(brandName) {
   if (!brand) brand = await prisma.brand.create({ data: { name } });
   return brand;
 }
+async function hasDuplicateAdditionalOrder(candidate, excludeId) {
+  const existingOrders = await prisma.additionalOrder.findMany({
+    where: {
+      siteId: candidate.siteId,
+      ...(excludeId && { id: { not: excludeId } }),
+    },
+    select: {
+      id: true,
+      siteId: true,
+      type: true,
+      modelCode: true,
+      productName: true,
+      quantity: true,
+      unitCost: true,
+      totalCost: true,
+      remark: true,
+      brand: { select: { name: true } },
+    },
+  });
+  const candidateKey = buildAdditionalOrderKey(candidate);
+  return existingOrders.some(
+    (order) =>
+      buildAdditionalOrderKey({
+        siteId: order.siteId,
+        brandName: order.brand?.name ?? null,
+        type: order.type,
+        modelCode: order.modelCode,
+        productName: order.productName,
+        quantity: order.quantity,
+        unitCost: order.unitCost,
+        totalCost: order.totalCost,
+        remark: order.remark,
+      }) === candidateKey
+  );
+}
+function normalizeImageData(value) {
+  if (value === void 0) return void 0;
+  if (value === null) return null;
+  if (typeof value !== 'string') return void 0;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
 function toDecimal(v) {
   if (v == null || v === '') return null;
   const n = Number(v);
-  return isNaN(n) ? null : new import_client3.Prisma.Decimal(n);
+  return isNaN(n) ? null : new import_client5.Prisma.Decimal(n);
 }
 var VALID_STATUSES = ['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'];
 additionalOrdersRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res, next) => {
@@ -120114,15 +120751,32 @@ additionalOrdersRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, re
       totalCost,
       status = 'PENDING',
       remark,
+      imageData,
     } = req.body;
     if (!productName || String(productName).trim() === '')
       throw new AppError(400, 'VALIDATION_ERROR', 'productName is required');
     if (status && !VALID_STATUSES.includes(status))
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid status');
     const brand = await resolveBrand(brandName);
+    const normalizedImageData = normalizeImageData(imageData);
+    const siteIdValue = siteId || null;
+    const duplicate = await hasDuplicateAdditionalOrder({
+      siteId: siteIdValue,
+      brandName: brand?.name ?? brandName ?? null,
+      type: String(type ?? '').trim() || 'Unknown',
+      modelCode: String(modelCode ?? '').trim() || null,
+      productName: String(productName).trim(),
+      quantity: parseInt(String(quantity ?? 1)) || 1,
+      unitCost: toDecimal(unitCost),
+      totalCost: toDecimal(totalCost),
+      remark: String(remark ?? '').trim() || null,
+    });
+    if (duplicate) {
+      throw new AppError(409, 'CONFLICT', 'Duplicate additional order already exists');
+    }
     const order = await prisma.additionalOrder.create({
       data: {
-        siteId: siteId || null,
+        siteId: siteIdValue,
         brandId: brand?.id ?? null,
         type: String(type ?? '').trim() || 'Unknown',
         modelCode: String(modelCode ?? '').trim() || null,
@@ -120132,6 +120786,7 @@ additionalOrdersRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, re
         totalCost: toDecimal(totalCost),
         status: status ?? 'PENDING',
         remark: String(remark ?? '').trim() || null,
+        ...(normalizedImageData !== void 0 && { imageData: normalizedImageData }),
       },
       select: {
         id: true,
@@ -120151,7 +120806,7 @@ additionalOrdersRouter.post('/', requireRole('ADMIN', 'MANAGER'), async (req, re
         brand: { select: { id: true, name: true } },
       },
     });
-    res.status(201).json({ ...order, hasImage: false });
+    res.status(201).json({ ...order, hasImage: !!normalizedImageData });
   } catch (err) {
     next(err);
   }
@@ -120169,23 +120824,57 @@ additionalOrdersRouter.patch('/:id', requireRole('ADMIN', 'MANAGER'), async (req
       totalCost,
       status,
       remark,
+      imageData: imageDataInput,
     } = req.body;
     if (status && !VALID_STATUSES.includes(status))
       throw new AppError(400, 'VALIDATION_ERROR', 'Invalid status');
+    const part = await prisma.additionalOrder.findUnique({
+      where: { id: String(req.params.id) },
+      include: { brand: { select: { name: true } } },
+    });
+    if (!part) throw new AppError(404, 'NOT_FOUND', 'Additional order not found');
     const brand = brandName !== void 0 ? await resolveBrand(brandName) : void 0;
+    const normalizedImageData = normalizeImageData(imageDataInput);
+    const nextSiteId = siteId !== void 0 ? siteId || null : part.siteId;
+    const nextBrandName = brandName !== void 0 ? (brand?.name ?? null) : (part.brand?.name ?? null);
+    const nextType = type !== void 0 ? String(type).trim() || 'Unknown' : part.type;
+    const nextModelCode = modelCode !== void 0 ? String(modelCode).trim() || null : part.modelCode;
+    const nextProductName = productName !== void 0 ? String(productName).trim() : part.productName;
+    const nextQuantity = quantity !== void 0 ? parseInt(String(quantity)) || 1 : part.quantity;
+    const nextUnitCost = unitCost !== void 0 ? toDecimal(unitCost) : part.unitCost;
+    const nextTotalCost = totalCost !== void 0 ? toDecimal(totalCost) : part.totalCost;
+    const nextRemark = remark !== void 0 ? String(remark).trim() || null : part.remark;
+    const duplicate = await hasDuplicateAdditionalOrder(
+      {
+        siteId: nextSiteId,
+        brandName: nextBrandName,
+        type: nextType,
+        modelCode: nextModelCode,
+        productName: nextProductName,
+        quantity: nextQuantity,
+        unitCost: nextUnitCost,
+        totalCost: nextTotalCost,
+        remark: nextRemark,
+      },
+      part.id
+    );
+    if (duplicate) {
+      throw new AppError(409, 'CONFLICT', 'Duplicate additional order already exists');
+    }
     const order = await prisma.additionalOrder.update({
       where: { id: String(req.params.id) },
       data: {
-        ...(siteId !== void 0 && { siteId: siteId || null }),
-        ...(type !== void 0 && { type: String(type).trim() || 'Unknown' }),
+        ...(siteId !== void 0 && { siteId: nextSiteId }),
+        ...(type !== void 0 && { type: nextType }),
         ...(brand !== void 0 && { brandId: brand?.id ?? null }),
-        ...(modelCode !== void 0 && { modelCode: String(modelCode).trim() || null }),
-        ...(productName !== void 0 && { productName: String(productName).trim() }),
-        ...(quantity !== void 0 && { quantity: parseInt(String(quantity)) || 1 }),
-        ...(unitCost !== void 0 && { unitCost: toDecimal(unitCost) }),
-        ...(totalCost !== void 0 && { totalCost: toDecimal(totalCost) }),
+        ...(modelCode !== void 0 && { modelCode: nextModelCode }),
+        ...(productName !== void 0 && { productName: nextProductName }),
+        ...(quantity !== void 0 && { quantity: nextQuantity }),
+        ...(unitCost !== void 0 && { unitCost: nextUnitCost }),
+        ...(totalCost !== void 0 && { totalCost: nextTotalCost }),
         ...(status != null && status !== '' && { status }),
-        ...(remark !== void 0 && { remark: String(remark).trim() || null }),
+        ...(remark !== void 0 && { remark: nextRemark }),
+        ...(normalizedImageData !== void 0 && { imageData: normalizedImageData }),
       },
       select: {
         id: true,
@@ -120221,8 +120910,130 @@ additionalOrdersRouter.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (re
   }
 });
 
+// src/modules/users/users.router.ts
+var import_express10 = __toESM(require_express2(), 1);
+var usersRouter = (0, import_express10.Router)();
+usersRouter.use(requireAuth);
+usersRouter.get('/', requireRole('SUPER_ADMIN'), async (_req, res, next) => {
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: [{ createdAt: 'desc' }],
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        phone: true,
+        lineUserId: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    await Promise.all(
+      users
+        .filter((user) => isSuperAdminEmail(user.email) && user.role !== 'SUPER_ADMIN')
+        .map((user) => syncFixedSuperAdminRole(user))
+    );
+    res.json(
+      users.map((user) => ({
+        ...user,
+        role: resolveUserRole(user.email, user.role),
+      }))
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+usersRouter.patch('/:id/role', requireRole('SUPER_ADMIN'), async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const parsed = updateUserRoleSchema.safeParse(req.body);
+    if (!parsed.success)
+      throw new AppError(400, 'VALIDATION_ERROR', 'Invalid input', parsed.error.issues);
+    const target = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        name: true,
+        phone: true,
+        lineUserId: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!target) throw new AppError(404, 'NOT_FOUND', 'User not found');
+    if (target.id === req.user.id) {
+      throw new AppError(403, 'FORBIDDEN', 'You cannot change your own role');
+    }
+    if (isSuperAdminEmail(target.email) && parsed.data.role !== 'SUPER_ADMIN') {
+      throw new AppError(403, 'FORBIDDEN', 'SuperAdmin accounts cannot be downgraded');
+    }
+    if (!isSuperAdminEmail(target.email) && parsed.data.role === 'SUPER_ADMIN') {
+      throw new AppError(403, 'FORBIDDEN', 'Only the fixed SuperAdmin accounts can use this role');
+    }
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { role: parsed.data.role },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        phone: true,
+        lineUserId: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    await recordAuditLog({
+      userId: req.user.id,
+      action: 'UPDATE_ROLE',
+      entityType: 'User',
+      entityId: updated.id,
+      oldValue: { role: target.role },
+      newValue: { role: updated.role },
+      ipAddress: req.ip,
+    }).catch(() => {});
+    res.json({ ...updated, role: resolveUserRole(updated.email, updated.role) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// src/modules/audit-logs/audit-logs.router.ts
+var import_express11 = __toESM(require_express2(), 1);
+var auditLogsRouter = (0, import_express11.Router)();
+auditLogsRouter.use(requireAuth);
+var auditLogInclude = {
+  user: { select: { id: true, name: true, email: true, role: true } },
+};
+auditLogsRouter.get('/', requireRole('SUPER_ADMIN'), async (req, res, next) => {
+  try {
+    const { page = '1', limit = '20' } = req.query;
+    const p = Math.max(1, parseInt(page, 10));
+    const l2 = Math.min(100, Math.max(1, parseInt(limit, 10)));
+    const [data, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        include: auditLogInclude,
+        orderBy: { createdAt: 'desc' },
+        skip: (p - 1) * l2,
+        take: l2,
+      }),
+      prisma.auditLog.count(),
+    ]);
+    res.json({ data, meta: { page: p, limit: l2, total, totalPages: Math.ceil(total / l2) } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // src/app.ts
-var app = (0, import_express10.default)();
+var app = (0, import_express12.default)();
 app.use(helmet());
 app.use(
   (0, import_cors.default)({
@@ -120238,8 +121049,8 @@ app.use(
     legacyHeaders: false,
   })
 );
-app.use(import_express10.default.json({ limit: '10mb' }));
-app.use(import_express10.default.urlencoded({ extended: true }));
+app.use(import_express12.default.json({ limit: '10mb' }));
+app.use(import_express12.default.urlencoded({ extended: true }));
 app.use((0, import_morgan.default)(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use('/api/auth', authRouter);
 app.use('/api/sites', sitesRouter);
@@ -120250,6 +121061,8 @@ app.use('/api/borrow', borrowRouter);
 app.use('/api/excel', excelRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/additional-orders', additionalOrdersRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/audit-logs', auditLogsRouter);
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: /* @__PURE__ */ new Date().toISOString() });
 });

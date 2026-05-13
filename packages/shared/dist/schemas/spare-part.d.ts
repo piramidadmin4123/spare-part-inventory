@@ -14,9 +14,7 @@ export declare const createSparePartSchema: z.ZodObject<
     quantity: z.ZodDefault<z.ZodNumber>;
     minStock: z.ZodDefault<z.ZodNumber>;
     cost: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
-    status: z.ZodEnum<
-      ['IN_SERVICE', 'BORROWED', 'IN_STOCK', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED']
-    >;
+    status: z.ZodEnum<['IN_SERVICE', 'BORROWED', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED']>;
     location: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     remark: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     imageUrl: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -24,7 +22,7 @@ export declare const createSparePartSchema: z.ZodObject<
   'strip',
   z.ZodTypeAny,
   {
-    status: 'IN_SERVICE' | 'BORROWED' | 'IN_STOCK' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED';
+    status: 'IN_SERVICE' | 'BORROWED' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED';
     siteId: string;
     equipmentTypeId: string;
     brandId: string;
@@ -41,7 +39,7 @@ export declare const createSparePartSchema: z.ZodObject<
     imageUrl?: string | null | undefined;
   },
   {
-    status: 'IN_SERVICE' | 'BORROWED' | 'IN_STOCK' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED';
+    status: 'IN_SERVICE' | 'BORROWED' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED';
     siteId: string;
     equipmentTypeId: string;
     brandId: string;
@@ -77,7 +75,7 @@ export declare const updateSparePartSchema: z.ZodObject<
     minStock: z.ZodOptional<z.ZodDefault<z.ZodNumber>>;
     cost: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodNumber>>>;
     status: z.ZodOptional<
-      z.ZodEnum<['IN_SERVICE', 'BORROWED', 'IN_STOCK', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED']>
+      z.ZodEnum<['IN_SERVICE', 'BORROWED', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED']>
     >;
     location: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
     remark: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
@@ -86,14 +84,7 @@ export declare const updateSparePartSchema: z.ZodObject<
   'strip',
   z.ZodTypeAny,
   {
-    status?:
-      | 'IN_SERVICE'
-      | 'BORROWED'
-      | 'IN_STOCK'
-      | 'MAINTENANCE'
-      | 'LOST'
-      | 'DECOMMISSIONED'
-      | undefined;
+    status?: 'IN_SERVICE' | 'BORROWED' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED' | undefined;
     siteId?: string | undefined;
     equipmentTypeId?: string | undefined;
     brandId?: string | undefined;
@@ -110,14 +101,7 @@ export declare const updateSparePartSchema: z.ZodObject<
     imageUrl?: string | null | undefined;
   },
   {
-    status?:
-      | 'IN_SERVICE'
-      | 'BORROWED'
-      | 'IN_STOCK'
-      | 'MAINTENANCE'
-      | 'LOST'
-      | 'DECOMMISSIONED'
-      | undefined;
+    status?: 'IN_SERVICE' | 'BORROWED' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED' | undefined;
     siteId?: string | undefined;
     equipmentTypeId?: string | undefined;
     brandId?: string | undefined;
@@ -159,10 +143,10 @@ export declare const sparePartQuerySchema: z.ZodObject<
     status?:
       | 'IN_SERVICE'
       | 'BORROWED'
-      | 'IN_STOCK'
       | 'MAINTENANCE'
       | 'LOST'
       | 'DECOMMISSIONED'
+      | 'IN_STOCK'
       | undefined;
     siteId?: string | undefined;
     equipmentTypeId?: string | undefined;
@@ -173,10 +157,10 @@ export declare const sparePartQuerySchema: z.ZodObject<
     status?:
       | 'IN_SERVICE'
       | 'BORROWED'
-      | 'IN_STOCK'
       | 'MAINTENANCE'
       | 'LOST'
       | 'DECOMMISSIONED'
+      | 'IN_STOCK'
       | undefined;
     siteId?: string | undefined;
     equipmentTypeId?: string | undefined;

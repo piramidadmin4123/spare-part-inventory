@@ -3,6 +3,7 @@ export declare const borrowRequestSchema: z.ZodEffects<
   z.ZodObject<
     {
       sparePartId: z.ZodString;
+      borrowDestination: z.ZodString;
       borrowerName: z.ZodString;
       borrowerEmail: z.ZodString;
       project: z.ZodOptional<z.ZodString>;
@@ -16,6 +17,7 @@ export declare const borrowRequestSchema: z.ZodEffects<
     z.ZodTypeAny,
     {
       sparePartId: string;
+      borrowDestination: string;
       borrowerName: string;
       borrowerEmail: string;
       dateStart: string;
@@ -25,6 +27,7 @@ export declare const borrowRequestSchema: z.ZodEffects<
     },
     {
       sparePartId: string;
+      borrowDestination: string;
       borrowerName: string;
       borrowerEmail: string;
       dateStart: string;
@@ -35,6 +38,7 @@ export declare const borrowRequestSchema: z.ZodEffects<
   >,
   {
     sparePartId: string;
+    borrowDestination: string;
     borrowerName: string;
     borrowerEmail: string;
     dateStart: string;
@@ -44,6 +48,7 @@ export declare const borrowRequestSchema: z.ZodEffects<
   },
   {
     sparePartId: string;
+    borrowDestination: string;
     borrowerName: string;
     borrowerEmail: string;
     dateStart: string;
@@ -111,6 +116,7 @@ export declare const cancelSchema: z.ZodObject<
 export declare const editBorrowSchema: z.ZodEffects<
   z.ZodObject<
     {
+      borrowDestination: z.ZodOptional<z.ZodString>;
       borrowerName: z.ZodOptional<z.ZodString>;
       borrowerEmail: z.ZodOptional<z.ZodString>;
       project: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -125,6 +131,7 @@ export declare const editBorrowSchema: z.ZodEffects<
     'strip',
     z.ZodTypeAny,
     {
+      borrowDestination?: string | undefined;
       borrowerName?: string | undefined;
       borrowerEmail?: string | undefined;
       project?: string | null | undefined;
@@ -133,6 +140,7 @@ export declare const editBorrowSchema: z.ZodEffects<
       borrowerRemark?: string | null | undefined;
     },
     {
+      borrowDestination?: string | undefined;
       borrowerName?: string | undefined;
       borrowerEmail?: string | undefined;
       project?: string | null | undefined;
@@ -142,6 +150,7 @@ export declare const editBorrowSchema: z.ZodEffects<
     }
   >,
   {
+    borrowDestination?: string | undefined;
     borrowerName?: string | undefined;
     borrowerEmail?: string | undefined;
     project?: string | null | undefined;
@@ -150,6 +159,7 @@ export declare const editBorrowSchema: z.ZodEffects<
     borrowerRemark?: string | null | undefined;
   },
   {
+    borrowDestination?: string | undefined;
     borrowerName?: string | undefined;
     borrowerEmail?: string | undefined;
     project?: string | null | undefined;

@@ -12365,6 +12365,12 @@ if (process.env.NODE_ENV !== 'production') {
 
 // src/lib/notify.ts
 var import_nodemailer = __toESM(require_nodemailer(), 1);
+
+// src/lib/roles.ts
+var SUPER_ADMIN_EMAILS = ['piramidadmin4123@gmail.com', 'pongsak@psolutions.co.th'];
+var SUPER_ADMIN_EMAIL_SET = new Set(SUPER_ADMIN_EMAILS);
+
+// src/lib/notify.ts
 var TEAMS_WEBHOOK_URL = process.env.TEAMS_WEBHOOK_URL;
 var SMTP_HOST = process.env.SMTP_HOST;
 var SMTP_PORT = parseInt(process.env.SMTP_PORT ?? '587', 10);
@@ -12376,9 +12382,15 @@ var EXTRA_NOTIFY_EMAILS = (process.env.NOTIFY_EMAILS ?? '')
   .map((e) => e.trim())
   .filter(Boolean);
 var APP_URL = process.env.APP_URL ?? 'http://localhost:5173';
+var BORROW_PAGE_URL = 'https://spare-part-inventory-web.vercel.app/borrow';
 async function getAdminEmails() {
   const users = await prisma.user.findMany({
-    where: { role: { in: ['ADMIN', 'MANAGER'] } },
+    where: {
+      OR: [
+        { role: { in: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] } },
+        { email: { in: [...SUPER_ADMIN_EMAILS] } },
+      ],
+    },
     select: { email: true },
   });
   const dbEmails = users.map((u) => u.email).filter(Boolean);
@@ -12498,7 +12510,7 @@ async function notifyDueReturn(items) {
             '\u23F0 \u0E41\u0E08\u0E49\u0E07\u0E40\u0E15\u0E37\u0E2D\u0E19: \u0E43\u0E01\u0E25\u0E49\u0E16\u0E36\u0E07\u0E01\u0E33\u0E2B\u0E19\u0E14\u0E04\u0E37\u0E19\u0E2D\u0E38\u0E1B\u0E01\u0E23\u0E13\u0E4C',
           text: `**${item.borrowerName}** \u0E01\u0E23\u0E38\u0E13\u0E32\u0E04\u0E37\u0E19 **${item.modelCode}** \u0E20\u0E32\u0E22\u0E43\u0E19\u0E27\u0E31\u0E19\u0E1E\u0E23\u0E38\u0E48\u0E07\u0E19\u0E35\u0E49`,
           facts,
-          actionUrl: `${APP_URL}/borrow`,
+          actionUrl: BORROW_PAGE_URL,
           actionLabel: '\u0E14\u0E39\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E22\u0E37\u0E21',
           themeColor: 'F59E0B',
         }),

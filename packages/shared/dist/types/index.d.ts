@@ -1,11 +1,5 @@
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'TECHNICIAN' | 'VIEWER';
-export type ItemStatus =
-  | 'IN_SERVICE'
-  | 'BORROWED'
-  | 'IN_STOCK'
-  | 'MAINTENANCE'
-  | 'LOST'
-  | 'DECOMMISSIONED';
+export type ItemStatus = 'IN_SERVICE' | 'BORROWED' | 'MAINTENANCE' | 'LOST' | 'DECOMMISSIONED';
 export type BorrowStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'RETURNED' | 'CANCELLED';
 export type OrderStatus = 'PENDING' | 'ORDERED' | 'RECEIVED' | 'CANCELLED';
 export interface PaginatedResponse<T> {
@@ -103,6 +97,7 @@ export interface BorrowTransaction {
   borrower: Pick<User, 'id' | 'name' | 'email' | 'role'>;
   approver?: Pick<User, 'id' | 'name'> | null;
   status: BorrowStatus;
+  borrowDestination?: string | null;
   borrowerName?: string | null;
   borrowerEmail?: string | null;
   project?: string | null;
