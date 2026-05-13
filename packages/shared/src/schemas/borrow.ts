@@ -11,6 +11,7 @@ function isBefore(left: string, right: string): boolean {
 
 const borrowRequestBaseSchema = z.object({
   sparePartId: z.string().uuid(),
+  borrowDestination: z.string().min(1, 'กรุณาระบุสถานที่ที่ยืมไป').max(300),
   borrowerName: z.string().min(1, 'กรุณาระบุชื่อผู้ยืม').max(200),
   borrowerEmail: z.string().email('Email ไม่ถูกต้อง'),
   project: z.string().max(200).optional(),
@@ -49,6 +50,7 @@ export const cancelSchema = z.object({
 });
 
 const editBorrowBaseSchema = z.object({
+  borrowDestination: z.string().min(1, 'กรุณาระบุสถานที่ที่ยืมไป').max(300).optional(),
   borrowerName: z.string().min(1, 'กรุณาระบุชื่อผู้ยืม').max(200).optional(),
   borrowerEmail: z.string().email('Email ไม่ถูกต้อง').optional(),
   project: z.string().max(200).optional().nullable(),

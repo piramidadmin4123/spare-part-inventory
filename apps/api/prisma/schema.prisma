@@ -20,9 +20,8 @@ enum UserRole {
 }
 
 enum ItemStatus {
-  IN_SERVICE      // กำลังใช้งานที่ site
+  IN_SERVICE      // กำลังใช้งานที่ site (พร้อมให้ยืม)
   BORROWED        // กำลังถูกยืม
-  IN_STOCK        // เก็บในห้อง service
   MAINTENANCE     // ส่งซ่อม
   LOST            // หาย
   DECOMMISSIONED  // ปลดระวาง
@@ -158,6 +157,7 @@ model BorrowTransaction {
   expectedReturn DateTime?
   actualReturn   DateTime?
 
+  borrowDestination String?
   borrowerName  String?
   borrowerEmail String?
   borrowerRemark String? @db.Text

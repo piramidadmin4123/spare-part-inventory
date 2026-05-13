@@ -92,6 +92,8 @@ borrowRouter.post('/', requireRole('ADMIN', 'MANAGER', 'TECHNICIAN'), async (req
 
     const part = await prisma.sparePart.findUnique({ where: { id: parsed.data.sparePartId } });
     if (!part) throw new AppError(404, 'NOT_FOUND', 'Spare part not found');
+    if (part.status !== 'IN_SERVICE')
+      throw new AppError(409, 'CONFLICT', 'อุปกรณ์นี้ไม่อยู่ในสถานะ In Service จึงไม่สามารถยืมได้');
     if (part.quantity < 1)
       throw new AppError(409, 'INSUFFICIENT_STOCK', 'No stock available to borrow');
 
@@ -105,6 +107,7 @@ borrowRouter.post('/', requireRole('ADMIN', 'MANAGER', 'TECHNICIAN'), async (req
       data: {
         sparePartId: parsed.data.sparePartId,
         borrowerId: req.user!.id,
+        borrowDestination: parsed.data.borrowDestination,
         borrowerName: parsed.data.borrowerName,
         borrowerEmail: parsed.data.borrowerEmail,
         project: parsed.data.project,
@@ -165,6 +168,9 @@ borrowRouter.patch('/:id', async (req, res, next) => {
     const updated = await prisma.borrowTransaction.update({
       where: { id },
       data: {
+        ...(parsed.data.borrowDestination !== undefined && {
+          borrowDestination: parsed.data.borrowDestination,
+        }),
         ...(parsed.data.borrowerName !== undefined && { borrowerName: parsed.data.borrowerName }),
         ...(parsed.data.borrowerEmail !== undefined && {
           borrowerEmail: parsed.data.borrowerEmail,
@@ -215,7 +221,7 @@ borrowRouter.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req, res, ne
       await prisma.$transaction([
         prisma.sparePart.update({
           where: { id: tx.sparePartId },
-          data: { status: 'IN_STOCK', quantity: { increment: 1 } },
+          data: { status: 'IN_SERVICE', quantity: { increment: 1 } },
         }),
         prisma.borrowTransaction.delete({ where: { id } }),
       ]);
@@ -457,7 +463,7 @@ borrowRouter.patch('/:id/return', async (req, res, next) => {
       }),
       prisma.sparePart.update({
         where: { id: tx.sparePartId },
-        data: { status: 'IN_STOCK', quantity: { increment: 1 } },
+        data: { status: 'IN_SERVICE', quantity: { increment: 1 } },
       }),
     ]);
 

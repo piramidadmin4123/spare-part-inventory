@@ -82,7 +82,6 @@ type InventorySparePart = SparePart & {
 
 const STATUS_OPTIONS = [
   { value: 'IN_SERVICE', label: 'In Service', color: 'default' },
-  { value: 'IN_STOCK', label: 'In Stock', color: 'secondary' },
   { value: 'BORROWED', label: 'Borrowed', color: 'outline' },
   { value: 'MAINTENANCE', label: 'Maintenance', color: 'destructive' },
   { value: 'LOST', label: 'Lost', color: 'destructive' },
@@ -95,7 +94,6 @@ function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_OPTIONS.find((s) => s.value === status);
   const variantMap: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
     IN_SERVICE: 'default',
-    IN_STOCK: 'secondary',
     BORROWED: 'outline',
     MAINTENANCE: 'destructive',
     LOST: 'destructive',
@@ -211,7 +209,7 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
           remark: editing.remark ?? '',
           imageUrl: editing.imageUrl ?? null,
         }
-      : { quantity: 1, minStock: 1, status: 'IN_STOCK', imageUrl: null },
+      : { quantity: 1, minStock: 1, status: 'IN_SERVICE', imageUrl: null },
   });
   const imageUrl = watch('imageUrl');
 
@@ -236,7 +234,7 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
               remark: editing.remark ?? '',
               imageUrl: editing.imageUrl ?? null,
             }
-          : { quantity: 1, minStock: 1, status: 'IN_STOCK', imageUrl: null }
+          : { quantity: 1, minStock: 1, status: 'IN_SERVICE', imageUrl: null }
       );
     }
   }, [open, editing]);

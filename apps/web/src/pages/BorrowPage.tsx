@@ -158,7 +158,7 @@ function CreateBorrowDialog({
   const { user } = useAuthStore();
   const createBorrow = useCreateBorrow();
   const { data: partsData } = useSpareParts(
-    { status: 'IN_STOCK', limit: 100 },
+    { status: 'IN_SERVICE', limit: 100 },
     {
       enabled: open,
       staleTime: 0,
@@ -244,6 +244,17 @@ function CreateBorrowDialog({
             </Select>
             {errors.sparePartId && (
               <p className="text-xs text-destructive">{errors.sparePartId.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <Label>สถานที่ที่ยืมไป *</Label>
+            <Input
+              {...register('borrowDestination')}
+              placeholder="เช่น ห้อง Server ชั้น 3, โรงแรม Capella"
+            />
+            {errors.borrowDestination && (
+              <p className="text-xs text-destructive">{errors.borrowDestination.message}</p>
             )}
           </div>
 
@@ -493,6 +504,7 @@ function EditBorrowDialog({
   useEffect(() => {
     if (tx) {
       reset({
+        borrowDestination: tx.borrowDestination ?? '',
         borrowerName: tx.borrowerName ?? tx.borrower.name,
         borrowerEmail: tx.borrowerEmail ?? tx.borrower.email,
         project: tx.project ?? '',
@@ -519,6 +531,17 @@ function EditBorrowDialog({
           <div className="rounded-md bg-muted px-3 py-2 text-sm">
             <span className="font-mono font-medium">{tx.sparePart.modelCode}</span>
             <span className="ml-2 text-muted-foreground">[{tx.sparePart.site.code}]</span>
+          </div>
+
+          <div className="space-y-1">
+            <Label>สถานที่ที่ยืมไป *</Label>
+            <Input
+              {...register('borrowDestination')}
+              placeholder="เช่น ห้อง Server ชั้น 3, โรงแรม Capella"
+            />
+            {errors.borrowDestination && (
+              <p className="text-xs text-destructive">{errors.borrowDestination.message}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -1197,6 +1220,10 @@ export function BorrowPage() {
                 <DetailField
                   label="Email"
                   value={detailTarget.borrowerEmail || detailTarget.borrower.email || '—'}
+                />
+                <DetailField
+                  label="สถานที่ที่ยืมไป"
+                  value={detailTarget.borrowDestination ?? '—'}
                 />
                 <DetailField label="Project" value={detailTarget.project ?? '—'} />
                 <DetailField label="วันที่เริ่มยืม" value={fmtDateTime(detailTarget.dateStart)} />

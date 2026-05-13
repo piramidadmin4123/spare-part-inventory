@@ -17,7 +17,7 @@ export const createSparePartSchema = z.object({
   quantity: z.number().int().min(0).default(1),
   minStock: z.number().int().min(0).default(1),
   cost: z.number().nonnegative().optional().nullable(),
-  status: z.enum(['IN_SERVICE', 'BORROWED', 'IN_STOCK', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED']),
+  status: z.enum(['IN_SERVICE', 'BORROWED', 'MAINTENANCE', 'LOST', 'DECOMMISSIONED']),
   location: z.string().max(100).optional().nullable(),
   remark: z.string().optional().nullable(),
   imageUrl: z.string().optional().nullable(),
