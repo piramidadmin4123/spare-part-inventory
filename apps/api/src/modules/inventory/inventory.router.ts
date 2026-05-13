@@ -18,6 +18,14 @@ const sparePartInclude = {
   site: true,
   equipmentType: true,
   brand: true,
+  borrowTransactions: {
+    where: { status: 'APPROVED' },
+    take: 1,
+    orderBy: { createdAt: 'desc' as const },
+    include: {
+      borrower: { select: { id: true, name: true, email: true } },
+    },
+  },
 } satisfies Prisma.SparePartInclude;
 
 // GET /api/spare-parts
@@ -93,9 +101,11 @@ inventoryRouter.get('/', async (req, res, next) => {
           )
         : [];
 
+      const { borrowTransactions, ...partRest } = part;
       return {
-        ...part,
+        ...partRest,
         duplicateSites: duplicateSites.length > 0 ? duplicateSites : undefined,
+        currentBorrow: borrowTransactions[0] ?? null,
       };
     });
 
@@ -114,7 +124,8 @@ inventoryRouter.get('/:id', async (req, res, next) => {
     const id = req.params.id as string;
     const part = await prisma.sparePart.findUnique({ where: { id }, include: sparePartInclude });
     if (!part) throw new AppError(404, 'NOT_FOUND', 'Spare part not found');
-    res.json(part);
+    const { borrowTransactions, ...partRest } = part;
+    res.json({ ...partRest, currentBorrow: borrowTransactions[0] ?? null });
   } catch (err) {
     next(err);
   }

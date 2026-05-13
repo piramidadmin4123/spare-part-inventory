@@ -116121,6 +116121,13 @@ function isBefore(left, right) {
 }
 var borrowRequestBaseSchema = external_exports.object({
   sparePartId: external_exports.string().uuid(),
+  borrowDestination: external_exports
+    .string()
+    .min(
+      1,
+      '\u0E01\u0E23\u0E38\u0E13\u0E32\u0E23\u0E30\u0E1A\u0E38\u0E2A\u0E16\u0E32\u0E19\u0E17\u0E35\u0E48\u0E17\u0E35\u0E48\u0E22\u0E37\u0E21\u0E44\u0E1B'
+    )
+    .max(300),
   borrowerName: external_exports
     .string()
     .min(
@@ -116160,6 +116167,14 @@ var cancelSchema = external_exports.object({
   borrowerRemark: external_exports.string().optional(),
 });
 var editBorrowBaseSchema = external_exports.object({
+  borrowDestination: external_exports
+    .string()
+    .min(
+      1,
+      '\u0E01\u0E23\u0E38\u0E13\u0E32\u0E23\u0E30\u0E1A\u0E38\u0E2A\u0E16\u0E32\u0E19\u0E17\u0E35\u0E48\u0E17\u0E35\u0E48\u0E22\u0E37\u0E21\u0E44\u0E1B'
+    )
+    .max(300)
+    .optional(),
   borrowerName: external_exports
     .string()
     .min(
@@ -116241,7 +116256,6 @@ var createSparePartSchema = external_exports.object({
   status: external_exports.enum([
     'IN_SERVICE',
     'BORROWED',
-    'IN_STOCK',
     'MAINTENANCE',
     'LOST',
     'DECOMMISSIONED',
@@ -118322,6 +118336,14 @@ var sparePartInclude = {
   site: true,
   equipmentType: true,
   brand: true,
+  borrowTransactions: {
+    where: { status: 'APPROVED' },
+    take: 1,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      borrower: { select: { id: true, name: true, email: true } },
+    },
+  },
 };
 inventoryRouter.get('/', async (req, res, next) => {
   try {
@@ -118380,9 +118402,11 @@ inventoryRouter.get('/', async (req, res, next) => {
             (site) => site.id !== part.siteId
           )
         : [];
+      const { borrowTransactions, ...partRest } = part;
       return {
-        ...part,
+        ...partRest,
         duplicateSites: duplicateSites.length > 0 ? duplicateSites : void 0,
+        currentBorrow: borrowTransactions[0] ?? null,
       };
     });
     res.json({
@@ -118398,7 +118422,8 @@ inventoryRouter.get('/:id', async (req, res, next) => {
     const id = req.params.id;
     const part = await prisma.sparePart.findUnique({ where: { id }, include: sparePartInclude });
     if (!part) throw new AppError(404, 'NOT_FOUND', 'Spare part not found');
-    res.json(part);
+    const { borrowTransactions, ...partRest } = part;
+    res.json({ ...partRest, currentBorrow: borrowTransactions[0] ?? null });
   } catch (err) {
     next(err);
   }

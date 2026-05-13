@@ -80,9 +80,20 @@ export interface SparePart {
   remark?: string | null;
   imageUrl?: string | null;
   duplicateSites?: Pick<Site, 'id' | 'code' | 'name'>[];
-  currentBorrow?: BorrowTransaction | null;
+  currentBorrow?: CurrentBorrowInfo | null;
   createdAt: string;
   updatedAt: string;
+}
+export interface CurrentBorrowInfo {
+  id: string;
+  status: BorrowStatus;
+  borrowDestination?: string | null;
+  borrowerName?: string | null;
+  borrowerEmail?: string | null;
+  borrower: Pick<User, 'id' | 'name' | 'email'>;
+  project?: string | null;
+  dateStart?: string | null;
+  expectedReturn?: string | null;
 }
 export interface BorrowTransaction {
   id: string;

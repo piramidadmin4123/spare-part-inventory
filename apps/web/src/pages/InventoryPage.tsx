@@ -946,7 +946,14 @@ export function InventoryPage() {
                       {costTotal != null ? costTotal.toLocaleString('th-TH') : '—'}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={p.status} />
+                      <div className="flex flex-col gap-1">
+                        <StatusBadge status={p.status} />
+                        {p.status === 'BORROWED' && p.currentBorrow && (
+                          <p className="max-w-[140px] truncate text-[11px] text-muted-foreground">
+                            {p.currentBorrow.borrowerName ?? p.currentBorrow.borrower.name}
+                          </p>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       <div className="flex flex-col">
@@ -1136,6 +1143,56 @@ export function InventoryPage() {
               </div>
 
               <DetailItem label="Remark" value={detailTarget.remark ?? '—'} />
+
+              {detailTarget.status === 'BORROWED' && detailTarget.currentBorrow && (
+                <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-orange-700">
+                    ข้อมูลการยืม (ปัจจุบัน)
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <DetailItem
+                      label="ผู้ยืม"
+                      value={
+                        detailTarget.currentBorrow.borrowerName ??
+                        detailTarget.currentBorrow.borrower.name
+                      }
+                    />
+                    <DetailItem
+                      label="Email ผู้ยืม"
+                      value={
+                        detailTarget.currentBorrow.borrowerEmail ??
+                        detailTarget.currentBorrow.borrower.email ??
+                        '—'
+                      }
+                    />
+                    <DetailItem
+                      label="สถานที่ที่ยืมไป"
+                      value={detailTarget.currentBorrow.borrowDestination ?? '—'}
+                    />
+                    <DetailItem label="Project" value={detailTarget.currentBorrow.project ?? '—'} />
+                    <DetailItem
+                      label="วันที่เริ่มยืม"
+                      value={
+                        detailTarget.currentBorrow.dateStart
+                          ? new Date(detailTarget.currentBorrow.dateStart).toLocaleDateString(
+                              'th-TH'
+                            )
+                          : '—'
+                      }
+                    />
+                    <DetailItem
+                      label="วันที่คาดว่าจะคืน"
+                      value={
+                        detailTarget.currentBorrow.expectedReturn
+                          ? new Date(detailTarget.currentBorrow.expectedReturn).toLocaleDateString(
+                              'th-TH'
+                            )
+                          : '—'
+                      }
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
