@@ -853,7 +853,7 @@ export function BorrowPage() {
               <TableHead>อุปกรณ์</TableHead>
               <TableHead>Site</TableHead>
               <TableHead>ชื่อผู้ยืม</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>สถานที่ที่ยืมไป</TableHead>
               <TableHead>Project</TableHead>
               <TableHead>วันที่ยืม</TableHead>
               <TableHead>วันที่คืน</TableHead>
@@ -865,13 +865,13 @@ export function BorrowPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-16 text-center">
+                <TableCell colSpan={11} className="py-16 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : txs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-16 text-center text-muted-foreground">
+                <TableCell colSpan={11} className="py-16 text-center text-muted-foreground">
                   ไม่พบรายการ
                 </TableCell>
               </TableRow>
@@ -891,7 +891,6 @@ export function BorrowPage() {
                 const isOverdue = tx.status === 'APPROVED' && overdueDays > 0;
 
                 const displayName = tx.borrowerName ?? tx.borrower.name;
-                const displayEmail = tx.borrowerEmail || null;
 
                 return (
                   <TableRow
@@ -921,7 +920,7 @@ export function BorrowPage() {
                     </TableCell>
                     <TableCell className="text-sm">{displayName}</TableCell>
                     <TableCell className="max-w-[160px] truncate text-xs text-muted-foreground">
-                      {displayEmail || '—'}
+                      {tx.borrowDestination ?? '—'}
                     </TableCell>
                     <TableCell className="max-w-[120px] truncate text-sm">
                       {tx.project ?? '—'}
@@ -1205,6 +1204,10 @@ export function BorrowPage() {
                     </div>
                   }
                 />
+                <DetailField
+                  label="สถานที่ที่ยืมไป"
+                  value={detailTarget.borrowDestination ?? '—'}
+                />
                 <CreateBorrowDialog
                   open={createOpen}
                   onOpenChange={(v) => {
@@ -1220,10 +1223,6 @@ export function BorrowPage() {
                 <DetailField
                   label="Email"
                   value={detailTarget.borrowerEmail || detailTarget.borrower.email || '—'}
-                />
-                <DetailField
-                  label="สถานที่ที่ยืมไป"
-                  value={detailTarget.borrowDestination ?? '—'}
                 />
                 <DetailField label="Project" value={detailTarget.project ?? '—'} />
                 <DetailField label="วันที่เริ่มยืม" value={fmtDateTime(detailTarget.dateStart)} />
