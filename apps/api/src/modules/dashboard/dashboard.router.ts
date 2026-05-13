@@ -19,6 +19,7 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
       overdueItems,
       overdueBorrowers,
       allNonRetiredParts,
+      brandRows,
     ] = await Promise.all([
       prisma.sparePart.count(),
       prisma.sparePart.groupBy({ by: ['status'], _count: { id: true } }),
@@ -44,6 +45,9 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
         where: { status: { notIn: ['DECOMMISSIONED', 'LOST'] } },
         select: { siteId: true, materialCode: true, modelCode: true, minStock: true },
       }),
+      prisma.sparePart.findMany({
+        select: { brand: { select: { name: true } } },
+      }),
     ]);
 
     const groupCounts = new Map<string, { count: number; minStock: number }>();
@@ -61,6 +65,15 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
       (g) => g.minStock > 0 && g.count < g.minStock
     ).length;
 
+    const brandCountMap = new Map<string, number>();
+    for (const r of brandRows) {
+      const name = r.brand.name;
+      brandCountMap.set(name, (brandCountMap.get(name) ?? 0) + 1);
+    }
+    const byBrand = Array.from(brandCountMap.entries())
+      .map(([brand, count]) => ({ brand, count }))
+      .sort((a, b) => b.count - a.count);
+
     res.json({
       totalParts,
       pendingBorrows,
@@ -69,6 +82,7 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
       lowStock,
       byStatus: byStatus.map((s) => ({ status: s.status, count: s._count.id })),
       borrowByStatus: borrowByStatus.map((s) => ({ status: s.status, count: s._count.id })),
+      byBrand,
     });
   } catch (err) {
     next(err);

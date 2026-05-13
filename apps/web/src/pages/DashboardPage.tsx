@@ -27,6 +27,7 @@ interface Summary {
   lowStock: number;
   byStatus: { status: string; count: number }[];
   borrowByStatus: { status: string; count: number }[];
+  byBrand: { brand: string; count: number }[];
 }
 
 interface LowStockItem {
@@ -174,6 +175,9 @@ export function DashboardPage() {
     status: s.status,
   }));
 
+  const brandData = (summary?.byBrand ?? []).slice(0, 10);
+  const brandMax = brandData[0]?.count ?? 1;
+
   return (
     <div className="flex h-full flex-col overflow-auto bg-gray-50">
       <div className="border-b bg-white px-6 py-4">
@@ -291,6 +295,31 @@ export function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Brand breakdown */}
+        {brandData.length > 0 && (
+          <div className="rounded-xl border bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-sm font-semibold">จำนวนอุปกรณ์แต่ละแบรนด์ (Top 10)</h2>
+            <div className="space-y-2">
+              {brandData.map((b) => (
+                <div key={b.brand} className="flex items-center gap-3">
+                  <span className="w-32 shrink-0 truncate text-right text-xs text-muted-foreground">
+                    {b.brand}
+                  </span>
+                  <div className="flex-1 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="h-5 rounded-full bg-blue-500 transition-all"
+                      style={{ width: `${(b.count / brandMax) * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums">
+                    {b.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Bottom tables */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
