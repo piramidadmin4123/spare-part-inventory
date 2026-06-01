@@ -14,6 +14,7 @@ import {
   Download,
   FileSpreadsheet,
   AlertTriangle,
+  HandHelping,
 } from 'lucide-react';
 import { createSparePartSchema, updateSparePartSchema } from '@spare-part/shared';
 import type {
@@ -73,6 +74,8 @@ import type { SparePartFilters } from '@/features/inventory/api';
 import { excelApi } from '@/features/excel/api';
 import type { ImportResult } from '@/features/excel/api';
 import { toast } from 'sonner';
+import { CreateBorrowDialog } from './BorrowPage';
+import { useAuthStore } from '@/store/auth.store';
 type DuplicateSiteInfo = Pick<Site, 'id' | 'code' | 'name'>;
 type InventorySparePart = SparePart & {
   duplicateSites?: DuplicateSiteInfo[];
@@ -734,8 +737,12 @@ export function InventoryPage() {
   const [editing, setEditing] = useState<SparePart | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SparePart | null>(null);
   const [detailTarget, setDetailTarget] = useState<InventorySparePart | null>(null);
+  const [borrowTarget, setBorrowTarget] = useState<SparePart | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  const { user } = useAuthStore();
+  const canBorrow = user?.role !== 'VIEWER';
 
   const { data: sites = [] } = useSites();
   const { data: types = [] } = useEquipmentTypes();
@@ -971,6 +978,17 @@ export function InventoryPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        {canBorrow && p.status === 'IN_SERVICE' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-blue-600 hover:text-blue-700"
+                            onClick={() => setBorrowTarget(p)}
+                            title="ขอยืมอุปกรณ์นี้"
+                          >
+                            <HandHelping className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -1193,10 +1211,30 @@ export function InventoryPage() {
                   </div>
                 </div>
               )}
+
+              {canBorrow && detailTarget.status === 'IN_SERVICE' && (
+                <DialogFooter>
+                  <Button
+                    onClick={() => {
+                      setBorrowTarget(detailTarget);
+                      setDetailTarget(null);
+                    }}
+                  >
+                    <HandHelping className="mr-2 h-4 w-4" /> ขอยืมอุปกรณ์นี้
+                  </Button>
+                </DialogFooter>
+              )}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Borrow request dialog */}
+      <CreateBorrowDialog
+        open={!!borrowTarget}
+        onOpenChange={(v) => !v && setBorrowTarget(null)}
+        initialSparePartId={borrowTarget?.id ?? null}
+      />
 
       {/* Delete confirm */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>

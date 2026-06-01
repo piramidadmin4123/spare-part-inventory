@@ -148,7 +148,7 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
 
 // ── Create Borrow Dialog ───────────────────────────────────────────────────
 
-function CreateBorrowDialog({
+export function CreateBorrowDialog({
   open,
   onOpenChange,
   initialSparePartId,
@@ -360,6 +360,12 @@ function CreateBorrowDialog({
             )}
           </div>
 
+          <div className="space-y-1">
+            <Label>Project Type</Label>
+            <Input {...register('project')} placeholder="เช่น Migration, Maintenance" />
+            {errors.project && <p className="text-xs text-destructive">{errors.project.message}</p>}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>ชื่อผู้ยืม *</Label>
@@ -375,12 +381,6 @@ function CreateBorrowDialog({
                 <p className="text-xs text-destructive">{errors.borrowerEmail.message}</p>
               )}
             </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label>Project Type</Label>
-            <Input {...register('project')} placeholder="เช่น Migration, Maintenance" />
-            {errors.project && <p className="text-xs text-destructive">{errors.project.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -643,6 +643,11 @@ function EditBorrowDialog({
             )}
           </div>
 
+          <div className="space-y-1">
+            <Label>Project Type</Label>
+            <Input {...register('project')} placeholder="เช่น Migration, Maintenance" />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>ชื่อผู้ยืม *</Label>
@@ -658,11 +663,6 @@ function EditBorrowDialog({
                 <p className="text-xs text-destructive">{errors.borrowerEmail.message}</p>
               )}
             </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label>Project Type</Label>
-            <Input {...register('project')} placeholder="เช่น Migration, Maintenance" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
