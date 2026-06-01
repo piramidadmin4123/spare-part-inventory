@@ -17,6 +17,7 @@ import {
   FileSpreadsheet,
   Pencil,
   Trash2,
+  Search,
 } from 'lucide-react';
 import { borrowRequestSchema, editBorrowSchema } from '@spare-part/shared';
 import type { BorrowRequestInput, EditBorrowInput, BorrowTransaction } from '@spare-part/shared';
@@ -73,6 +74,7 @@ import {
 } from '@/features/borrow/useBorrow';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSpareParts } from '@/features/inventory/useInventory';
+import { useSites, useEquipmentTypes, useBrands } from '@/features/master-data/useMasterData';
 import { useAuthStore } from '@/store/auth.store';
 import { isAdminLikeRole, isSuperAdminRole } from '@/lib/roles';
 
@@ -157,8 +159,25 @@ function CreateBorrowDialog({
 }) {
   const { user } = useAuthStore();
   const createBorrow = useCreateBorrow();
+
+  // ── Filters (mirror Spare Parts page) ────────────────────────────────────
+  const [filterSiteId, setFilterSiteId] = useState<string | undefined>();
+  const [filterTypeId, setFilterTypeId] = useState<string | undefined>();
+  const [filterBrandId, setFilterBrandId] = useState<string | undefined>();
+  const [search, setSearch] = useState('');
+
+  const { data: sites = [] } = useSites();
+  const { data: types = [] } = useEquipmentTypes();
+  const { data: brands = [] } = useBrands();
+
   const { data: partsData } = useSpareParts(
-    { status: 'IN_SERVICE', limit: 100 },
+    {
+      status: 'IN_SERVICE',
+      siteId: filterSiteId,
+      equipmentTypeId: filterTypeId,
+      brandId: filterBrandId,
+      limit: 100,
+    },
     {
       enabled: open,
       staleTime: 0,
@@ -167,7 +186,24 @@ function CreateBorrowDialog({
       refetchOnReconnect: 'always',
     }
   );
-  const parts = partsData?.data ?? [];
+
+  // Only IN_SERVICE items are borrowable — BORROWED items never appear here.
+  const allParts = (partsData?.data ?? []).filter((p) => p.status === 'IN_SERVICE');
+  const q = search.trim().toLowerCase();
+  const parts = q
+    ? allParts.filter((p) =>
+        [p.modelCode, p.productName, p.serialNumber, p.materialCode].some((v) =>
+          v?.toLowerCase().includes(q)
+        )
+      )
+    : allParts;
+
+  function resetFilters() {
+    setFilterSiteId(undefined);
+    setFilterTypeId(undefined);
+    setFilterBrandId(undefined);
+    setSearch('');
+  }
 
   const {
     register,
@@ -202,6 +238,7 @@ function CreateBorrowDialog({
     createBorrow.mutate(data, {
       onSuccess: () => {
         reset({ borrowerName: user?.name ?? '', borrowerEmail: user?.email ?? '' });
+        resetFilters();
         onOpenChange(false);
       },
     });
@@ -211,7 +248,10 @@ function CreateBorrowDialog({
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) reset({ borrowerName: user?.name ?? '', borrowerEmail: user?.email ?? '' });
+        if (!v) {
+          reset({ borrowerName: user?.name ?? '', borrowerEmail: user?.email ?? '' });
+          resetFilters();
+        }
         onOpenChange(v);
       }}
     >
@@ -220,8 +260,72 @@ function CreateBorrowDialog({
           <DialogTitle>ขอยืม Spare Part</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label>Spare Part *</Label>
+
+            {/* Filters — mirror the Spare Parts page */}
+            <div className="space-y-2 rounded-lg border bg-muted/30 p-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  className="h-8 pl-8 text-xs"
+                  placeholder="ค้นหา model / serial / material..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Select
+                  value={filterSiteId ?? 'ALL'}
+                  onValueChange={(v) => setFilterSiteId(v === 'ALL' ? undefined : v)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="ทุก Site" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">ทุก Site</SelectItem>
+                    {sites.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filterTypeId ?? 'ALL'}
+                  onValueChange={(v) => setFilterTypeId(v === 'ALL' ? undefined : v)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="ทุกประเภท" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">ทุกประเภท</SelectItem>
+                    {types.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.icon} {t.code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filterBrandId ?? 'ALL'}
+                  onValueChange={(v) => setFilterBrandId(v === 'ALL' ? undefined : v)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="ทุก Brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">ทุก Brand</SelectItem>
+                    {brands.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <Select
               value={selectedSparePartId ?? ''}
               onValueChange={(v) => setValue('sparePartId', v, { shouldDirty: true })}
@@ -242,17 +346,15 @@ function CreateBorrowDialog({
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground">พร้อมให้ยืม {parts.length} รายการ</p>
             {errors.sparePartId && (
               <p className="text-xs text-destructive">{errors.sparePartId.message}</p>
             )}
           </div>
 
           <div className="space-y-1">
-            <Label>สถานที่ที่ยืมไป *</Label>
-            <Input
-              {...register('borrowDestination')}
-              placeholder="เช่น ห้อง Server ชั้น 3, โรงแรม Capella"
-            />
+            <Label>Project / งาน *</Label>
+            <Input {...register('borrowDestination')} placeholder="เช่น Capella Hotel Migration" />
             {errors.borrowDestination && (
               <p className="text-xs text-destructive">{errors.borrowDestination.message}</p>
             )}
@@ -276,8 +378,8 @@ function CreateBorrowDialog({
           </div>
 
           <div className="space-y-1">
-            <Label>Project / งาน</Label>
-            <Input {...register('project')} placeholder="เช่น Capella Hotel Migration" />
+            <Label>Project Type</Label>
+            <Input {...register('project')} placeholder="เช่น Migration, Maintenance" />
             {errors.project && <p className="text-xs text-destructive">{errors.project.message}</p>}
           </div>
 
@@ -534,11 +636,8 @@ function EditBorrowDialog({
           </div>
 
           <div className="space-y-1">
-            <Label>สถานที่ที่ยืมไป *</Label>
-            <Input
-              {...register('borrowDestination')}
-              placeholder="เช่น ห้อง Server ชั้น 3, โรงแรม Capella"
-            />
+            <Label>Project / งาน *</Label>
+            <Input {...register('borrowDestination')} placeholder="เช่น Capella Hotel Migration" />
             {errors.borrowDestination && (
               <p className="text-xs text-destructive">{errors.borrowDestination.message}</p>
             )}
@@ -562,8 +661,8 @@ function EditBorrowDialog({
           </div>
 
           <div className="space-y-1">
-            <Label>Project / งาน</Label>
-            <Input {...register('project')} placeholder="เช่น Capella Hotel Migration" />
+            <Label>Project Type</Label>
+            <Input {...register('project')} placeholder="เช่น Migration, Maintenance" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -853,8 +952,8 @@ export function BorrowPage() {
               <TableHead>อุปกรณ์</TableHead>
               <TableHead>Site</TableHead>
               <TableHead>ชื่อผู้ยืม</TableHead>
-              <TableHead>สถานที่ที่ยืมไป</TableHead>
-              <TableHead>Project</TableHead>
+              <TableHead>Project / งาน</TableHead>
+              <TableHead>Project Type</TableHead>
               <TableHead>วันที่ยืม</TableHead>
               <TableHead>วันที่คืน</TableHead>
               <TableHead>สถานะ</TableHead>
@@ -1204,10 +1303,7 @@ export function BorrowPage() {
                     </div>
                   }
                 />
-                <DetailField
-                  label="สถานที่ที่ยืมไป"
-                  value={detailTarget.borrowDestination ?? '—'}
-                />
+                <DetailField label="Project / งาน" value={detailTarget.borrowDestination ?? '—'} />
                 <CreateBorrowDialog
                   open={createOpen}
                   onOpenChange={(v) => {
@@ -1224,7 +1320,7 @@ export function BorrowPage() {
                   label="Email"
                   value={detailTarget.borrowerEmail || detailTarget.borrower.email || '—'}
                 />
-                <DetailField label="Project" value={detailTarget.project ?? '—'} />
+                <DetailField label="Project Type" value={detailTarget.project ?? '—'} />
                 <DetailField label="วันที่เริ่มยืม" value={fmtDateTime(detailTarget.dateStart)} />
                 <DetailField
                   label="วันที่คาดว่าจะคืน"
