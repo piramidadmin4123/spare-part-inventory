@@ -1110,10 +1110,12 @@ excelRouter.get('/borrow-template', async (_req, res, next) => {
     const ws = wb.addWorksheet('Borrow Import');
 
     ws.columns = [
+      { header: 'Borrower Name', key: 'borrowerName', width: 22 },
       { header: 'Borrower Email', key: 'borrowerEmail', width: 28 },
       { header: 'Model Code', key: 'modelCode', width: 20 },
       { header: 'Serial Number', key: 'serialNumber', width: 22 },
-      { header: 'Project', key: 'project', width: 24 },
+      { header: 'Project / งาน', key: 'borrowDestination', width: 28 },
+      { header: 'Project Type', key: 'projectType', width: 20 },
       { header: 'Date Start (YYYY-MM-DD)', key: 'dateStart', width: 24 },
       { header: 'Expected Return (YYYY-MM-DD)', key: 'expectedReturn', width: 28 },
       { header: 'Actual Return (YYYY-MM-DD)', key: 'actualReturn', width: 26 },
@@ -1130,10 +1132,12 @@ excelRouter.get('/borrow-template', async (_req, res, next) => {
 
     // Sample row
     ws.addRow({
+      borrowerName: "P' Som",
       borrowerEmail: 'technician@example.com',
       modelCode: 'IAP-103-RW',
       serialNumber: 'CU0407405',
-      project: 'Capella Hotel Migration',
+      borrowDestination: 'Capella Hotel Migration',
+      projectType: 'Migration',
       dateStart: '2025-01-15',
       expectedReturn: '2025-02-15',
       actualReturn: '',
@@ -1143,10 +1147,10 @@ excelRouter.get('/borrow-template', async (_req, res, next) => {
 
     // Note row
     const noteRow = ws.addRow([
-      'Status values: PENDING | APPROVED | RETURNED | CANCELLED | REJECTED',
+      'Status: PENDING | APPROVED | RETURNED | CANCELLED | REJECTED — "Project / งาน" จำเป็นต้องกรอก ส่วน "Project Type" ไม่บังคับ | ระบุผู้ยืมด้วย Borrower Email (ต้องมีในระบบ)',
     ]);
     noteRow.getCell(1).font = { italic: true, color: { argb: 'FF888888' } };
-    ws.mergeCells(`A${noteRow.number}:I${noteRow.number}`);
+    ws.mergeCells(`A${noteRow.number}:K${noteRow.number}`);
 
     res.setHeader(
       'Content-Type',
@@ -1226,7 +1230,8 @@ excelRouter.post(
             else if (v === 'name') colMap.borrowerName = col;
             else if (v.includes('date start')) colMap.dateStart = col;
             else if (v.includes('date end')) colMap.dateEnd = col;
-            else if (v === 'project') colMap.project = col;
+            else if (v.includes('project') && v.includes('type')) colMap.projectType = col;
+            else if (v.startsWith('project')) colMap.borrowDestination = col;
           });
 
           if (!colMap.borrowerName) continue;
@@ -1271,7 +1276,9 @@ excelRouter.post(
 
               const dateStart = parseDate(cv(row, colMap.dateStart));
               const dateEnd = parseDate(cv(row, colMap.dateEnd));
-              const project = String(cv(row, colMap.project) ?? '').trim() || null;
+              const borrowDestination =
+                String(cv(row, colMap.borrowDestination) ?? '').trim() || null;
+              const projectType = String(cv(row, colMap.projectType) ?? '').trim() || null;
 
               await prisma.borrowTransaction.create({
                 data: {
@@ -1279,7 +1286,9 @@ excelRouter.post(
                   borrowerId,
                   approverId: req.user!.id,
                   status: dateEnd ? 'RETURNED' : 'APPROVED',
-                  project,
+                  borrowDestination,
+                  borrowerName: borrowerName || null,
+                  project: projectType,
                   dateStart,
                   expectedReturn: dateEnd,
                   actualReturn: dateEnd,
@@ -1321,9 +1330,11 @@ excelRouter.post(
             .trim()
             .toLowerCase();
           if (v.includes('borrower email')) colMap.borrowerEmail = col;
+          else if (v.includes('borrower name')) colMap.borrowerName = col;
           else if (v.includes('model code')) colMap.modelCode = col;
           else if (v.includes('serial')) colMap.serialNumber = col;
-          else if (v.includes('project')) colMap.project = col;
+          else if (v.includes('project') && v.includes('type')) colMap.projectType = col;
+          else if (v.includes('project')) colMap.borrowDestination = col;
           else if (v.includes('date start')) colMap.dateStart = col;
           else if (v.includes('expected return')) colMap.expectedReturn = col;
           else if (v.includes('actual return')) colMap.actualReturn = col;
@@ -1376,13 +1387,25 @@ excelRouter.post(
               continue;
             }
 
+            const borrowDestination =
+              String(cv(row, colMap.borrowDestination) ?? '').trim() || null;
+            if (!borrowDestination) {
+              errors.push(
+                `แถว ${r}: ไม่ได้ระบุ "Project / งาน" ซึ่งเป็นข้อมูลที่จำเป็นในการบันทึกการยืม — โปรดกรอกคอลัมน์ "Project / งาน" แล้ว Import ใหม่`
+              );
+              continue;
+            }
+
             await prisma.borrowTransaction.create({
               data: {
                 sparePartId: sparePart.id,
                 borrowerId: borrower.id,
                 approverId: req.user!.id,
                 status: mapBorrowStatus(cv(row, colMap.status)),
-                project: String(cv(row, colMap.project) ?? '').trim() || null,
+                borrowDestination,
+                borrowerName: String(cv(row, colMap.borrowerName) ?? '').trim() || borrower.name,
+                borrowerEmail,
+                project: String(cv(row, colMap.projectType) ?? '').trim() || null,
                 dateStart: parseDate(cv(row, colMap.dateStart)),
                 expectedReturn: parseDate(cv(row, colMap.expectedReturn)),
                 actualReturn: parseDate(cv(row, colMap.actualReturn)),
