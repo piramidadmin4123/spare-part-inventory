@@ -260,7 +260,8 @@ excelRouter.post(
           else if (v === 'name') colMap.borrowerName = col;
           else if (v.includes('date start')) colMap.borrowDateStart = col;
           else if (v.includes('date end')) colMap.borrowDateEnd = col;
-          else if (v === 'project') colMap.borrowProject = col;
+          else if (v.includes('project') && v.includes('type')) colMap.borrowProjectType = col;
+          else if (v.startsWith('project')) colMap.borrowDestination = col;
         });
 
         if (!colMap.productName && !colMap.code) continue;
@@ -333,10 +334,12 @@ excelRouter.post(
             costRaw != null && costRaw !== '' ? new Prisma.Decimal(String(costRaw)) : null;
           const rawBorrowerName = String(cv(row, colMap.borrowerName) ?? '').trim();
           const borrowerNameIsDate = /^\d+[/\-]\d+[/\-]\d+$/.test(rawBorrowerName);
+          // "Project / งาน" (borrowDestination) เป็นตัวหลักที่จำเป็นของการยืม
+          // "Project Type" (project) เป็นข้อมูลเสริม จึงไม่ใช้เป็นตัว trigger เดี่ยวๆ
           const hasBorrowData =
             (rawBorrowerName && !borrowerNameIsDate) ||
             !!cv(row, colMap.borrowDateStart) ||
-            !!cv(row, colMap.borrowProject);
+            !!cv(row, colMap.borrowDestination);
           const mappedStatus = mapStatus(cv(row, colMap.status));
           const status = mappedStatus === 'IN_SERVICE' && hasBorrowData ? 'BORROWED' : mappedStatus;
           const serialNumber = rawSerial || null;
@@ -451,7 +454,18 @@ excelRouter.post(
 
               const dateStart = parseDate(cv(row, colMap.borrowDateStart));
               const dateEnd = parseDate(cv(row, colMap.borrowDateEnd));
-              const borrowProject = String(cv(row, colMap.borrowProject) ?? '').trim() || null;
+              const borrowDestination =
+                String(cv(row, colMap.borrowDestination) ?? '').trim() || null;
+              const borrowProjectType =
+                String(cv(row, colMap.borrowProjectType) ?? '').trim() || null;
+
+              // "Project / งาน" จำเป็นต้องมีเมื่อบันทึกการยืม — ถ้าขาดให้เตือน (ยังบันทึกให้เพื่อไม่ให้ข้อมูลหาย)
+              if (!borrowDestination) {
+                pushWarning(
+                  `missing-destination:${partId}`,
+                  `แถว ${r}: มีข้อมูลการยืม (ผู้ยืม/วันที่) แต่ไม่ได้ระบุ "Project / งาน" ซึ่งเป็นข้อมูลที่จำเป็น — ระบบบันทึกการยืมให้แล้วแต่โปรดเข้าไปกรอก Project / งาน ของรายการนี้ภายหลัง (อุปกรณ์: ${truncateLabel(productName, 50)})`
+                );
+              }
 
               const existingBorrow = await prisma.borrowTransaction.findFirst({
                 where: { sparePartId: partId, status: { in: ['APPROVED', 'PENDING'] } },
@@ -463,7 +477,9 @@ excelRouter.post(
                     borrowerId,
                     approverId: req.user!.id,
                     status: dateEnd ? 'RETURNED' : 'APPROVED',
-                    project: borrowProject,
+                    borrowDestination,
+                    borrowerName: rawBorrowerName || null,
+                    project: borrowProjectType,
                     dateStart,
                     expectedReturn: dateEnd,
                     actualReturn: dateEnd,
@@ -785,19 +801,19 @@ excelRouter.get('/export', async (req, res, next) => {
       withSite: boolean
     ) => {
       const imageCol = 2;
-      const totalCols = withSite ? 18 : 17;
+      const totalCols = withSite ? 19 : 18;
       const borrowStart = withSite ? 15 : 14;
       const codeColIdx = withSite ? 7 : 6;
 
-      // Rows 1-3: merged title
-      for (let r = 1; r <= 3; r++) {
-        ws.mergeCells(r, 1, r, totalCols);
-        const cell = ws.getCell(r, 1);
-        cell.value = titleText;
-        cell.font = { bold: true, size: 13 };
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        ws.getRow(r).height = 19.5;
-      }
+      // Rows 1-3: single merged title banner (one title, spanning 3 rows tall)
+      ws.mergeCells(1, 1, 3, totalCols);
+      const titleCell = ws.getCell(1, 1);
+      titleCell.value = titleText;
+      titleCell.font = { bold: true, size: 13 };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getRow(1).height = 19.5;
+      ws.getRow(2).height = 19.5;
+      ws.getRow(3).height = 19.5;
 
       // Rows 4-5: empty spacer
       ws.getRow(4).height = 19.5;
@@ -830,7 +846,8 @@ excelRouter.get('/export', async (req, res, next) => {
             'Name',
             'Date Start',
             'Date End',
-            'Project',
+            'Project / งาน',
+            'Project Type',
           ]
         : [
             'No',
@@ -849,7 +866,8 @@ excelRouter.get('/export', async (req, res, next) => {
             'Name',
             'Date Start',
             'Date End',
-            'Project',
+            'Project / งาน',
+            'Project Type',
           ];
 
       // Bold columns (1-indexed): No, [Site], Type, Brand, Mat Code, Code, PRODUCT NAME, Qty, Cost, Remark
@@ -873,11 +891,11 @@ excelRouter.get('/export', async (req, res, next) => {
       const widths = withSite
         ? [
             10.55, 14.5, 18, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55,
-            27.44, 27.55, 15.55, 15.55, 30.55,
+            27.44, 27.55, 15.55, 15.55, 30.55, 22.55,
           ]
         : [
             10.55, 14.5, 16.55, 20.55, 30.55, 35.55, 90.44, 12.55, 18.55, 17.44, 28.44, 22.55,
-            27.44, 27.55, 15.55, 15.55, 30.55,
+            27.44, 27.55, 15.55, 15.55, 30.55, 22.55,
           ];
       widths.forEach((w, i) => {
         ws.getColumn(i + 1).width = w;
@@ -903,10 +921,11 @@ excelRouter.get('/export', async (req, res, next) => {
               p.serialNumber ?? '',
               p.macAddress ?? '',
               p.remark ?? '',
-              activeBorrow?.borrower.name ?? '',
+              activeBorrow?.borrowerName ?? activeBorrow?.borrower.name ?? '',
               fmtDate(activeBorrow?.dateStart),
               fmtDate(activeBorrow?.expectedReturn),
-              activeBorrow ? '' : '',
+              activeBorrow?.borrowDestination ?? '',
+              activeBorrow?.project ?? '',
             ]
           : [
               idx + 1,
@@ -922,10 +941,11 @@ excelRouter.get('/export', async (req, res, next) => {
               p.serialNumber ?? '',
               p.macAddress ?? '',
               p.remark ?? '',
-              activeBorrow?.borrower.name ?? '',
+              activeBorrow?.borrowerName ?? activeBorrow?.borrower.name ?? '',
               fmtDate(activeBorrow?.dateStart),
               fmtDate(activeBorrow?.expectedReturn),
-              '',
+              activeBorrow?.borrowDestination ?? '',
+              activeBorrow?.project ?? '',
             ];
 
         const dRow = ws.getRow(8 + idx);
@@ -1400,12 +1420,25 @@ excelRouter.get('/template', async (_req, res, next) => {
       { header: 'Cost (Total)', key: 'cost', width: 14 },
       { header: 'Status', key: 'status', width: 16 },
       { header: 'Serail Number', key: 'serialNumber', width: 22 },
+      { header: 'MAC ADDRESS', key: 'macAddress', width: 22 },
       { header: 'Remark', key: 'remark', width: 30 },
+      // ── การยืมอุปกรณ์ (ไม่บังคับ — กรอกเมื่อต้องการบันทึกการยืมพร้อมกัน) ──
+      { header: 'Name', key: 'borrowerName', width: 22 },
+      { header: 'Date Start', key: 'dateStart', width: 16 },
+      { header: 'Date End', key: 'dateEnd', width: 16 },
+      { header: 'Project / งาน', key: 'borrowDestination', width: 28 },
+      { header: 'Project Type', key: 'projectType', width: 20 },
     ];
 
-    ws.getRow(1).eachCell((cell) => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } };
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    const borrowStartCol = 12; // คอลัมน์แรกของกลุ่มการยืม (Name)
+    ws.getRow(1).eachCell((cell, col) => {
+      const isBorrow = col >= borrowStartCol;
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: isBorrow ? 'FFFFC000' : 'FF1F3864' },
+      };
+      cell.font = { bold: true, color: { argb: isBorrow ? 'FF1C1C1C' : 'FFFFFFFF' } };
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
     });
     ws.getRow(1).height = 20;
@@ -1420,8 +1453,41 @@ excelRouter.get('/template', async (_req, res, next) => {
       cost: 3700,
       status: 'In Service',
       serialNumber: 'CU0407405',
+      macAddress: '',
       remark: '',
+      borrowerName: '',
+      dateStart: '',
+      dateEnd: '',
+      borrowDestination: '',
+      projectType: '',
     });
+
+    // แถวตัวอย่าง: อุปกรณ์ที่กำลังถูกยืม (กรอกคอลัมน์กลุ่มการยืม)
+    ws.addRow({
+      type: 'SW-A',
+      brand: 'Aruba',
+      materialCode: 'ONWS005C500002',
+      modelCode: 'JL258A',
+      productName: 'ARUBA 2930F 48G SWITCH',
+      qty: 1,
+      cost: 25000,
+      status: 'Borrowed',
+      serialNumber: 'CN12ABC345',
+      macAddress: '',
+      remark: '',
+      borrowerName: "P' Som",
+      dateStart: '2026-01-15',
+      dateEnd: '',
+      borrowDestination: 'Capella Hotel Migration',
+      projectType: 'Migration',
+    });
+
+    // แถวหมายเหตุอธิบายค่า Status และกลุ่มการยืม
+    const noteRow = ws.addRow([
+      'Status: In Service | Borrowed | Maintenance | Lost | Decommissioned — คอลัมน์สีเหลืองกรอกเมื่อต้องการบันทึกการยืมเท่านั้น | เมื่อบันทึกการยืม: "Project / งาน" จำเป็นต้องกรอก ส่วน "Project Type" ไม่บังคับ | Date End ที่มีค่า = คืนแล้ว (RETURNED)',
+    ]);
+    noteRow.getCell(1).font = { italic: true, color: { argb: 'FF888888' } };
+    ws.mergeCells(`A${noteRow.number}:P${noteRow.number}`);
 
     res.setHeader(
       'Content-Type',
