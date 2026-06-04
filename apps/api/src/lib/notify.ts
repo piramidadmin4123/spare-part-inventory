@@ -18,12 +18,11 @@ const APP_URL = process.env.APP_URL ?? 'http://localhost:5173';
 const BORROW_PAGE_URL = 'https://spare-part-inventory-web.vercel.app/borrow';
 
 async function getAdminEmails(): Promise<string[]> {
+  // ส่งแจ้งเตือนให้ทุกบัญชีในระบบที่มี role เป็น ADMIN หรือ SUPER_ADMIN
+  // (ไม่ต้องออนไลน์/กำลังล็อกอินอยู่ — แค่มีข้อมูลผู้ใช้ใน DB ที่ role ตรง)
   const users = await prisma.user.findMany({
     where: {
-      OR: [
-        { role: { in: ['ADMIN', 'MANAGER', 'SUPER_ADMIN'] } },
-        { email: { in: [...SUPER_ADMIN_EMAILS] } },
-      ],
+      OR: [{ role: { in: ['ADMIN', 'SUPER_ADMIN'] } }, { email: { in: [...SUPER_ADMIN_EMAILS] } }],
     },
     select: { email: true },
   });
