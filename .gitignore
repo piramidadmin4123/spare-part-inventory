@@ -16,7 +16,6 @@ apps/web/dist/
 
 # Handover secrets (มี password — ห้ามขึ้น git)
 HANDOVER-SECRETS.md
-HANDOVER-SECRETS-env.rar
 
 # Preview/test Excel files
 *.xlsx
