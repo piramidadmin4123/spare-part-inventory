@@ -158,12 +158,23 @@ excelRouter.post(
       };
 
       for (const ws of wb.worksheets) {
-        if (!ws.name.toLowerCase().startsWith('spare parts')) continue;
+        const nameLc = ws.name.toLowerCase();
+        const isSpareSheet = nameLc.startsWith('spare parts');
+        // Additional Order sheets are handled in their own loop below
+        if (!isSpareSheet && nameLc.startsWith('additional order')) continue;
+        // ชีทที่ชื่อไม่ได้ขึ้นต้นด้วย "Spare Parts" (เช่น เปลี่ยนชื่อแท็บจาก template)
+        // จะประมวลผลได้ต่อเมื่อเลือก "ไซต์เริ่มต้น" ในหน้า Import เท่านั้น
+        if (!isSpareSheet && !baseSite) {
+          errors.push(
+            `ชีท "${ws.name}": ชื่อชีทไม่ได้ขึ้นต้นด้วย "Spare Parts" และยังไม่ได้เลือก "ไซต์เริ่มต้น" ในหน้า Import — จึงข้ามชีทนี้ วิธีแก้: เปลี่ยนชื่อชีทให้ขึ้นต้นด้วย "Spare Parts" (เช่น "Spare Parts Test") หรือเลือกไซต์เริ่มต้นแล้วลองใหม่`
+          );
+          continue;
+        }
 
-        // Auto-map sheet name → site
+        // Auto-map sheet name → site (เฉพาะชีทที่ขึ้นต้นด้วย "Spare Parts"); ชีทอื่นใช้ไซต์เริ่มต้น
         // "Spare Parts All" → always BKK; "Spare Parts KIS" → KIS, etc.
         let sheetSiteId = baseSite?.id ?? null;
-        const sheetSuffix = ws.name.replace(/spare parts\s*/i, '').trim();
+        const sheetSuffix = isSpareSheet ? ws.name.replace(/spare parts\s*/i, '').trim() : '';
         const allKeywords = sheetSuffix.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [];
         const englishKeyword = allKeywords.join(' ').trim() || null;
         if (englishKeyword) {
@@ -303,8 +314,11 @@ excelRouter.post(
           const rawSerial = String(cv(row, colMap.serialNumber) ?? '').trim();
           const rawRemark = String(cv(row, colMap.remark) ?? '').trim();
 
-          // Skip footer/legend rows (e.g. "มีในระบบ Center (Spare parts)")
-          if (rawProductName.includes('ในระบบ') || codeColVal.includes('ในระบบ')) {
+          // Skip footer/legend/note rows (e.g. "มีในระบบ Center (Spare parts)"
+          // หรือแถวหมายเหตุของ template ที่ขึ้นต้นด้วย "Status:")
+          const looksLikeNote =
+            rawProductName.startsWith('Status:') || typeCode.startsWith('Status:');
+          if (rawProductName.includes('ในระบบ') || codeColVal.includes('ในระบบ') || looksLikeNote) {
             skipped++;
             continue;
           }
