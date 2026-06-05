@@ -222,6 +222,7 @@ export function CreateBorrowDialog({
   });
   const selectedSparePartId = watch('sparePartId');
   const dateStartValue = watch('dateStart');
+  const selectedPart = allParts.find((p) => p.id === selectedSparePartId) ?? null;
 
   useEffect(() => {
     if (!open) return;
@@ -347,6 +348,16 @@ export function CreateBorrowDialog({
               </SelectContent>
             </Select>
             <p className="text-[11px] text-muted-foreground">พร้อมให้ยืม {parts.length} รายการ</p>
+            {selectedPart && (
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                <p className="text-muted-foreground">Product Name</p>
+                <p className="font-medium text-foreground">{selectedPart.productName}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  [{selectedPart.site.code}] {selectedPart.modelCode}
+                  {selectedPart.serialNumber ? ` · S/N ${selectedPart.serialNumber}` : ''}
+                </p>
+              </div>
+            )}
             {errors.sparePartId && (
               <p className="text-xs text-destructive">{errors.sparePartId.message}</p>
             )}
