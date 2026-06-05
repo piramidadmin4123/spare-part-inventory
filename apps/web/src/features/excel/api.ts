@@ -70,6 +70,19 @@ export const excelApi = {
     URL.revokeObjectURL(url);
   },
 
+  monthlyBorrowExport: async (month?: string) => {
+    const resp = await apiClient.get('/api/excel/monthly-borrow-export', {
+      params: month ? { month } : {},
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(resp.data as Blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `borrow-monthly-${month ?? new Date().toISOString().slice(0, 7)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
   borrowImport: (file: File) => {
     const form = new FormData();
     form.append('file', file);

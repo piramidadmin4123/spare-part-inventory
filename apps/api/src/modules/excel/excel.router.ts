@@ -1117,6 +1117,191 @@ excelRouter.get('/borrow-export', async (req, res, next) => {
   }
 });
 
+// ── GET /api/excel/monthly-borrow-export ─────────────────────────────────────
+// สรุปการยืมประจำเดือน: ชีท "สรุปรายรุ่น" + ชีท "รายละเอียด" จากประวัติการยืมในเดือนนั้น
+excelRouter.get('/monthly-borrow-export', async (req, res, next) => {
+  try {
+    const monthParam = (req.query.month as string | undefined)?.trim();
+    const base =
+      monthParam && /^\d{4}-\d{2}$/.test(monthParam)
+        ? new Date(`${monthParam}-01T00:00:00`)
+        : new Date();
+    const monthStart = new Date(base.getFullYear(), base.getMonth(), 1);
+    const monthEnd = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+
+    const txs = await prisma.borrowTransaction.findMany({
+      where: {
+        status: { in: ['APPROVED', 'RETURNED'] },
+        createdAt: { gte: monthStart, lt: monthEnd },
+      },
+      include: {
+        sparePart: { include: { site: true, equipmentType: true, brand: true } },
+        borrower: { select: { name: true, email: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const monthLabel = monthStart.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+    const fmt = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : '');
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Spare Part Inventory';
+    wb.created = new Date();
+
+    const BORDER: Partial<ExcelJS.Borders> = {
+      top: { style: 'thin' },
+      bottom: { style: 'thin' },
+      left: { style: 'thin' },
+      right: { style: 'thin' },
+    };
+    const HEADER_FILL: ExcelJS.Fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F3864' },
+    };
+    const HEADER_FONT: Partial<ExcelJS.Font> = { bold: true, color: { argb: 'FFFFFFFF' } };
+
+    const styleHeader = (ws: ExcelJS.Worksheet) => {
+      ws.getRow(1).eachCell((cell) => {
+        cell.fill = HEADER_FILL;
+        cell.font = HEADER_FONT;
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = BORDER;
+      });
+      ws.getRow(1).height = 22;
+    };
+
+    // ── ชีท 1: สรุปรายรุ่น ──
+    type ModelStat = {
+      type: string;
+      brand: string;
+      modelCode: string;
+      productName: string;
+      count: number;
+      sites: Map<string, number>;
+      borrowers: Map<string, number>;
+    };
+    const byModel = new Map<string, ModelStat>();
+    for (const tx of txs) {
+      const sp = tx.sparePart;
+      const key = `${sp.modelCode}::${sp.brand.name}`;
+      let m = byModel.get(key);
+      if (!m) {
+        m = {
+          type: sp.equipmentType.code,
+          brand: sp.brand.name,
+          modelCode: sp.modelCode,
+          productName: sp.productName,
+          count: 0,
+          sites: new Map(),
+          borrowers: new Map(),
+        };
+        byModel.set(key, m);
+      }
+      m.count += 1;
+      m.sites.set(sp.site.code, (m.sites.get(sp.site.code) ?? 0) + 1);
+      const who = tx.borrowerName ?? tx.borrower.name;
+      m.borrowers.set(who, (m.borrowers.get(who) ?? 0) + 1);
+    }
+
+    const wsSummary = wb.addWorksheet('สรุปรายรุ่น');
+    wsSummary.columns = [
+      { header: 'No', key: 'no', width: 6 },
+      { header: 'Type', key: 'type', width: 12 },
+      { header: 'Brand', key: 'brand', width: 16 },
+      { header: 'Model Code', key: 'modelCode', width: 22 },
+      { header: 'Product Name', key: 'productName', width: 46 },
+      { header: 'จำนวนครั้งที่ยืม', key: 'count', width: 16 },
+      { header: 'Site (จำนวน)', key: 'sites', width: 28 },
+      { header: 'ผู้ยืม (จำนวน)', key: 'borrowers', width: 40 },
+    ];
+    styleHeader(wsSummary);
+    const models = Array.from(byModel.values()).sort((a, b) => b.count - a.count);
+    models.forEach((m, idx) => {
+      const row = wsSummary.addRow({
+        no: idx + 1,
+        type: m.type,
+        brand: m.brand,
+        modelCode: m.modelCode,
+        productName: m.productName,
+        count: m.count,
+        sites: Array.from(m.sites.entries())
+          .map(([s, c]) => `${s} (${c})`)
+          .join(', '),
+        borrowers: Array.from(m.borrowers.entries())
+          .map(([n, c]) => `${n} (${c})`)
+          .join(', '),
+      });
+      row.eachCell((cell) => {
+        cell.border = BORDER;
+        cell.alignment = { vertical: 'middle', wrapText: true };
+      });
+    });
+    // แถวรวม
+    const totalRow = wsSummary.addRow({ productName: 'รวมทั้งหมด', count: txs.length });
+    totalRow.getCell('productName').font = { bold: true };
+    totalRow.getCell('count').font = { bold: true };
+
+    // ── ชีท 2: รายละเอียด ──
+    const wsDetail = wb.addWorksheet('รายละเอียด');
+    wsDetail.columns = [
+      { header: 'No', key: 'no', width: 6 },
+      { header: 'Type', key: 'type', width: 12 },
+      { header: 'Brand', key: 'brand', width: 16 },
+      { header: 'Model Code', key: 'modelCode', width: 22 },
+      { header: 'Product Name', key: 'productName', width: 46 },
+      { header: 'Serial Number', key: 'serial', width: 22 },
+      { header: 'Site', key: 'site', width: 12 },
+      { header: 'ผู้ยืม', key: 'borrower', width: 22 },
+      { header: 'Email', key: 'email', width: 26 },
+      { header: 'Project / งาน', key: 'destination', width: 28 },
+      { header: 'Project Type', key: 'projectType', width: 18 },
+      { header: 'วันที่ยืม', key: 'dateStart', width: 14 },
+      { header: 'กำหนดคืน', key: 'expectedReturn', width: 14 },
+      { header: 'วันที่คืนจริง', key: 'actualReturn', width: 14 },
+      { header: 'สถานะ', key: 'status', width: 12 },
+    ];
+    styleHeader(wsDetail);
+    txs.forEach((tx, idx) => {
+      const sp = tx.sparePart;
+      const row = wsDetail.addRow({
+        no: idx + 1,
+        type: sp.equipmentType.code,
+        brand: sp.brand.name,
+        modelCode: sp.modelCode,
+        productName: sp.productName,
+        serial: sp.serialNumber ?? '',
+        site: sp.site.code,
+        borrower: tx.borrowerName ?? tx.borrower.name,
+        email: tx.borrowerEmail ?? tx.borrower.email ?? '',
+        destination: tx.borrowDestination ?? '',
+        projectType: tx.project ?? '',
+        dateStart: fmt(tx.dateStart),
+        expectedReturn: fmt(tx.expectedReturn),
+        actualReturn: fmt(tx.actualReturn),
+        status: tx.status,
+      });
+      row.eachCell((cell) => {
+        cell.border = BORDER;
+        cell.alignment = { vertical: 'middle', wrapText: true };
+      });
+    });
+
+    const filename = `borrow-monthly-${monthStart.toISOString().slice(0, 7)}.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    // ใส่ชื่อเดือนไว้ใน custom header เผื่อ frontend อยากใช้
+    res.setHeader('X-Report-Month', encodeURIComponent(monthLabel));
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── GET /api/excel/borrow-template ───────────────────────────────────────────
 excelRouter.get('/borrow-template', async (_req, res, next) => {
   try {

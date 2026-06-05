@@ -15,9 +15,21 @@ import {
   CartesianGrid,
   Legend,
 } from 'recharts';
-import { Package, ArrowLeftRight, Clock, Tags, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  Package,
+  ArrowLeftRight,
+  Clock,
+  Tags,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Loader2,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api-client';
+import { excelApi } from '@/features/excel/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -165,6 +177,19 @@ function BorrowBadge({ status }: { status: string }) {
 
 export function DashboardPage() {
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportMonthly() {
+    setExporting(true);
+    try {
+      await excelApi.monthlyBorrowExport();
+      toast.success('ดาวน์โหลดสรุปการยืมประจำเดือนแล้ว');
+    } catch {
+      toast.error('ดาวน์โหลดไม่สำเร็จ');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const { data: summary } = useQuery<Summary>({
     queryKey: ['dashboard', 'summary'],
@@ -282,12 +307,29 @@ export function DashboardPage() {
 
         {/* Weekly borrow timeline by brand */}
         <div className="rounded-xl border bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">
               Timeline การยืมรายสัปดาห์ แยกตามแบรนด์
               {timeline?.monthLabel ? ` — ${timeline.monthLabel}` : ''}
             </h2>
-            <span className="text-xs text-muted-foreground">รีเซ็ตอัตโนมัติทุกเดือน</span>
+            <div className="flex items-center gap-3">
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                รีเซ็ตอัตโนมัติทุกเดือน
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportMonthly}
+                disabled={exporting || !timelineHasData}
+              >
+                {exporting ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-1 h-4 w-4" />
+                )}
+                Export สรุปเดือนนี้
+              </Button>
+            </div>
           </div>
           {timelineHasData ? (
             <ResponsiveContainer width="100%" height={300}>
