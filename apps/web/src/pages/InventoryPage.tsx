@@ -63,6 +63,7 @@ import {
 } from '@/components/ui/table';
 import {
   useSpareParts,
+  useSparePart,
   useCreateSparePart,
   useUpdateSparePart,
   useDeleteSparePart,
@@ -183,6 +184,8 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
   const createPart = useCreateSparePart();
   const updatePart = useUpdateSparePart();
   const imageInputRef = useRef<HTMLInputElement>(null);
+  // imageUrl ไม่ได้มากับ list — โหลดรูปของรายการที่กำลังแก้ไขแยก เพื่อโชว์ preview และกันเซฟทับรูปเดิมหาย
+  const { data: editingFull } = useSparePart(open && editing ? editing.id : undefined);
 
   const schema = editing ? updateSparePartSchema : createSparePartSchema;
   const {
@@ -210,7 +213,7 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
           status: editing.status as StatusValue,
           location: editing.location ?? '',
           remark: editing.remark ?? '',
-          imageUrl: editing.imageUrl ?? null,
+          imageUrl: editing.imageUrl ?? undefined,
         }
       : { quantity: 1, minStock: 1, status: 'IN_SERVICE', imageUrl: null },
   });
@@ -235,12 +238,20 @@ function SparePartForm({ open, onOpenChange, editing, onSuccess }: SparePartForm
               status: editing.status as StatusValue,
               location: editing.location ?? '',
               remark: editing.remark ?? '',
-              imageUrl: editing.imageUrl ?? null,
+              imageUrl: editing.imageUrl ?? undefined,
             }
           : { quantity: 1, minStock: 1, status: 'IN_SERVICE', imageUrl: null }
       );
     }
   }, [open, editing]);
+
+  // เมื่อโหลดรูปของรายการที่แก้ไขเสร็จ ค่อยเติมลงฟอร์ม (โชว์ preview); ถ้ายังไม่โหลด ค่า imageUrl
+  // จะเป็น undefined → onSubmit จะกรองทิ้ง ไม่เซฟทับรูปเดิม
+  useEffect(() => {
+    if (open && editing && editingFull) {
+      setValue('imageUrl', editingFull.imageUrl ?? null);
+    }
+  }, [open, editing, editingFull, setValue]);
 
   const isPending = createPart.isPending || updatePart.isPending;
 
@@ -737,6 +748,8 @@ export function InventoryPage() {
   const [editing, setEditing] = useState<SparePart | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SparePart | null>(null);
   const [detailTarget, setDetailTarget] = useState<InventorySparePart | null>(null);
+  // โหลดรูปของรายการที่เปิดดู (list ไม่ได้ส่ง imageUrl มา)
+  const { data: detailFull } = useSparePart(detailTarget?.id);
   const [borrowTarget, setBorrowTarget] = useState<SparePart | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1101,15 +1114,15 @@ export function InventoryPage() {
             <div className="space-y-5">
               <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
                 <div className="flex items-center justify-center rounded-xl border bg-muted/20 p-4">
-                  {detailTarget.imageUrl ? (
+                  {detailFull?.imageUrl ? (
                     <img
-                      src={detailTarget.imageUrl}
+                      src={detailFull.imageUrl}
                       alt={detailTarget.productName}
                       className="max-h-56 w-full rounded-lg object-contain"
                     />
                   ) : (
                     <div className="flex h-56 w-full items-center justify-center rounded-lg border border-dashed bg-white text-sm text-muted-foreground">
-                      ไม่มีรูปภาพ
+                      {detailFull ? 'ไม่มีรูปภาพ' : 'กำลังโหลดรูป…'}
                     </div>
                   )}
                 </div>

@@ -57,6 +57,8 @@ inventoryRouter.get('/', async (req, res, next) => {
       prisma.sparePart.findMany({
         where,
         include: sparePartInclude,
+        // imageUrl (อาจเป็น base64 ขนาดใหญ่) ไม่ส่งใน list เพื่อลด payload — โหลดตอนเปิดรายตัว (GET /:id)
+        omit: { imageUrl: true },
         orderBy: { [sortBy]: sortOrder },
         skip: (page - 1) * limit,
         take: limit,

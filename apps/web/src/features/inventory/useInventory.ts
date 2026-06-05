@@ -25,6 +25,16 @@ export function useSpareParts(
   });
 }
 
+// Fetch a single spare part (รวม imageUrl ที่ไม่ได้ส่งมากับ list) — ใช้ตอนเปิดดู/แก้ไขรายตัว
+export function useSparePart(id: string | undefined) {
+  return useQuery({
+    queryKey: [...INVENTORY_KEY, 'detail', id],
+    queryFn: () => inventoryApi.get(id!).then((r) => r.data),
+    enabled: !!id,
+    staleTime: 30_000,
+  });
+}
+
 export function useCreateSparePart() {
   const qc = useQueryClient();
   const { flashRefresh } = useActionRefresh();

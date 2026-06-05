@@ -38,6 +38,7 @@ additionalOrdersRouter.get('/', async (req, res, next) => {
     const [rawOrders, total] = await Promise.all([
       prisma.additionalOrder.findMany({
         where,
+        // ไม่ select imageData (base64 ใหญ่) — เช็คว่ามีรูปด้วย query เบาๆ ด้านล่างแทน
         select: {
           id: true,
           siteId: true,
@@ -52,7 +53,6 @@ additionalOrdersRouter.get('/', async (req, res, next) => {
           remark: true,
           createdAt: true,
           updatedAt: true,
-          imageData: true,
           site: { select: { id: true, code: true, name: true } },
           brand: { select: { id: true, name: true } },
         },
@@ -63,9 +63,16 @@ additionalOrdersRouter.get('/', async (req, res, next) => {
       prisma.additionalOrder.count({ where }),
     ]);
 
-    const orders = rawOrders.map(({ imageData, ...rest }) => ({
+    // หา id ที่มีรูป โดยไม่ดึงคอลัมน์ base64 (filter ที่ฝั่ง DB, select แค่ id)
+    const withImage = await prisma.additionalOrder.findMany({
+      where: { id: { in: rawOrders.map((o) => o.id) }, imageData: { not: null } },
+      select: { id: true },
+    });
+    const imageIds = new Set(withImage.map((o) => o.id));
+
+    const orders = rawOrders.map((rest) => ({
       ...rest,
-      hasImage: !!imageData,
+      hasImage: imageIds.has(rest.id),
     }));
     res.json({ orders, total, page: parseInt(page), limit: take });
   } catch (err) {
