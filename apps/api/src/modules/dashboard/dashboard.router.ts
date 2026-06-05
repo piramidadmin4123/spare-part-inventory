@@ -18,7 +18,8 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
       borrowByStatus,
       overdueItems,
       overdueBorrowers,
-      brandRows,
+      brandGroups,
+      brands,
     ] = await Promise.all([
       prisma.sparePart.count(),
       prisma.sparePart.groupBy({ by: ['status'], _count: { id: true } }),
@@ -40,18 +41,14 @@ dashboardRouter.get('/summary', async (_req, res, next) => {
         },
         _count: { _all: true },
       }),
-      prisma.sparePart.findMany({
-        select: { brand: { select: { name: true } } },
-      }),
+      // นับจำนวน part ต่อแบรนด์ให้ DB ทำ (ไม่ลากทุกแถวเข้า memory)
+      prisma.sparePart.groupBy({ by: ['brandId'], _count: { id: true } }),
+      prisma.brand.findMany({ select: { id: true, name: true } }),
     ]);
 
-    const brandCountMap = new Map<string, number>();
-    for (const r of brandRows) {
-      const name = r.brand.name;
-      brandCountMap.set(name, (brandCountMap.get(name) ?? 0) + 1);
-    }
-    const byBrand = Array.from(brandCountMap.entries())
-      .map(([brand, count]) => ({ brand, count }))
+    const brandNameById = new Map(brands.map((b) => [b.id, b.name]));
+    const byBrand = brandGroups
+      .map((g) => ({ brand: brandNameById.get(g.brandId) ?? '—', count: g._count.id }))
       .sort((a, b) => b.count - a.count);
 
     res.json({
