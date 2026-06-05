@@ -16,6 +16,18 @@ apps/web/dist/
 
 # Handover secrets (มี password — ห้ามขึ้น git)
 HANDOVER-SECRETS.md
+HANDOVER-SECRETS-env.rar
+
+# Preview/test Excel files
+*.xlsx
+*.xls
+
+# Test scripts and outputs
+EXCEL_TESTING_GUIDE.md
+EXCEL_TEST_REPORT.md
+apps/api/test-outputs/
+apps/api/apps/
+apps/api/scripts/
 
 # Prisma
 apps/api/prisma/migrations/*.sql.bak
