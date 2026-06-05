@@ -14,6 +14,9 @@ apps/web/dist/
 .env.production
 .env.*.local
 
+# Handover secrets (มี password — ห้ามขึ้น git)
+HANDOVER-SECRETS.md
+
 # Prisma
 apps/api/prisma/migrations/*.sql.bak
 
