@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -12,8 +13,9 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  Legend,
 } from 'recharts';
-import { Package, ArrowLeftRight, AlertTriangle, Clock } from 'lucide-react';
+import { Package, ArrowLeftRight, Clock, Tags, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/api-client';
 
@@ -24,21 +26,30 @@ interface Summary {
   pendingBorrows: number;
   overdueItems: number;
   overdueBorrowers: number;
-  lowStock: number;
   byStatus: { status: string; count: number }[];
   borrowByStatus: { status: string; count: number }[];
   byBrand: { brand: string; count: number }[];
 }
 
-interface LowStockItem {
-  key: string;
-  materialCode: string | null;
-  modelCode: string;
-  productName: string;
-  count: number;
-  minStock: number;
-  siteCode: string;
-  brandName: string;
+interface BorrowTimeline {
+  monthLabel: string;
+  totalBrands: number;
+  totalBorrows: number;
+  weeks: {
+    index: number;
+    label: string;
+    range: string;
+    start: string;
+    end: string;
+    total: number;
+    brands: { brand: string; count: number }[];
+  }[];
+  brandSummary: {
+    brand: string;
+    total: number;
+    borrowers: { name: string; count: number }[];
+    sites: { site: string; count: number }[];
+  }[];
 }
 
 interface RecentBorrow {
@@ -85,6 +96,20 @@ const BORROW_STATUS_COLOR: Record<string, string> = {
   RETURNED: '#22c55e',
   CANCELLED: '#6b7280',
 };
+
+// Palette for the per-brand stacked timeline
+const BRAND_PALETTE = [
+  '#3b82f6',
+  '#f59e0b',
+  '#22c55e',
+  '#8b5cf6',
+  '#ec4899',
+  '#14b8a6',
+  '#ef4444',
+  '#eab308',
+  '#94a3b8', // "อื่นๆ"
+];
+const OTHER_LABEL = 'อื่นๆ';
 
 // ── KPI Card ───────────────────────────────────────────────────────────────
 
@@ -139,15 +164,18 @@ function BorrowBadge({ status }: { status: string }) {
 // ── DashboardPage ──────────────────────────────────────────────────────────
 
 export function DashboardPage() {
+  const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
+
   const { data: summary } = useQuery<Summary>({
     queryKey: ['dashboard', 'summary'],
     queryFn: () => apiClient.get<Summary>('/api/dashboard/summary').then((r) => r.data),
     refetchInterval: 60_000,
   });
 
-  const { data: lowStock = [] } = useQuery<LowStockItem[]>({
-    queryKey: ['dashboard', 'low-stock'],
-    queryFn: () => apiClient.get<LowStockItem[]>('/api/dashboard/low-stock').then((r) => r.data),
+  const { data: timeline } = useQuery<BorrowTimeline>({
+    queryKey: ['dashboard', 'borrow-timeline'],
+    queryFn: () =>
+      apiClient.get<BorrowTimeline>('/api/dashboard/borrow-timeline').then((r) => r.data),
     refetchInterval: 60_000,
   });
 
@@ -157,6 +185,14 @@ export function DashboardPage() {
       apiClient.get<RecentBorrow[]>('/api/dashboard/recent-borrows').then((r) => r.data),
     refetchInterval: 30_000,
   });
+
+  const toggleBrand = (brand: string) =>
+    setExpandedBrands((prev) => {
+      const next = new Set(prev);
+      if (next.has(brand)) next.delete(brand);
+      else next.add(brand);
+      return next;
+    });
 
   const inService = summary?.byStatus.find((s) => s.status === 'IN_SERVICE')?.count ?? 0;
   const borrowed = summary?.byStatus.find((s) => s.status === 'BORROWED')?.count ?? 0;
@@ -177,6 +213,26 @@ export function DashboardPage() {
 
   const brandData = (summary?.byBrand ?? []).slice(0, 10);
   const brandMax = brandData[0]?.count ?? 1;
+
+  // ── Timeline (per-brand weekly stacked bars) ──
+  const topBrands = (timeline?.brandSummary ?? []).slice(0, 8).map((b) => b.brand);
+  const hasOthers = (timeline?.brandSummary.length ?? 0) > topBrands.length;
+  const series = hasOthers ? [...topBrands, OTHER_LABEL] : topBrands;
+
+  const weekChart = (timeline?.weeks ?? []).map((w) => {
+    const row: Record<string, string | number> = { name: w.label, range: w.range };
+    for (const b of topBrands) row[b] = 0;
+    let others = w.total;
+    for (const b of w.brands) {
+      if (topBrands.includes(b.brand)) {
+        row[b.brand] = b.count;
+        others -= b.count;
+      }
+    }
+    if (hasOthers) row[OTHER_LABEL] = others;
+    return row;
+  });
+  const timelineHasData = (timeline?.totalBorrows ?? 0) > 0;
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-gray-50">
@@ -209,19 +265,57 @@ export function DashboardPage() {
             color="bg-violet-500"
           />
           <KpiCard
-            icon={AlertTriangle}
-            label="Stock ต่ำกว่ากำหนด"
-            value={summary?.lowStock ?? '—'}
-            sub="รายการ"
-            color="bg-red-500"
+            icon={Tags}
+            label="แบรนด์ที่ถูกยืม (เดือนนี้)"
+            value={timeline?.totalBrands ?? '—'}
+            sub={timeline ? `รวม ${timeline.totalBorrows} ครั้ง` : undefined}
+            color="bg-teal-500"
           />
           <KpiCard
-            icon={AlertTriangle}
+            icon={Clock}
             label="อุปกรณ์เกินกำหนด"
             value={summary?.overdueItems ?? '—'}
             sub={summary ? `${summary.overdueBorrowers} คน` : undefined}
             color="bg-rose-500"
           />
+        </div>
+
+        {/* Weekly borrow timeline by brand */}
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">
+              Timeline การยืมรายสัปดาห์ แยกตามแบรนด์
+              {timeline?.monthLabel ? ` — ${timeline.monthLabel}` : ''}
+            </h2>
+            <span className="text-xs text-muted-foreground">รีเซ็ตอัตโนมัติทุกเดือน</span>
+          </div>
+          {timelineHasData ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={weekChart} barSize={44}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={30} />
+                <Tooltip formatter={(v, name) => [`${v} ตัว`, name]} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {series.map((s, i) => (
+                  <Bar
+                    key={s}
+                    dataKey={s}
+                    stackId="brands"
+                    fill={
+                      s === OTHER_LABEL
+                        ? BRAND_PALETTE[BRAND_PALETTE.length - 1]
+                        : BRAND_PALETTE[i % (BRAND_PALETTE.length - 1)]
+                    }
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              ยังไม่มีการยืมในเดือนนี้
+            </p>
+          )}
         </div>
 
         {/* Charts */}
@@ -296,7 +390,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Brand breakdown */}
+        {/* Brand breakdown (inventory by brand) */}
         {brandData.length > 0 && (
           <div className="rounded-xl border bg-white p-5 shadow-sm">
             <h2 className="mb-4 text-sm font-semibold">จำนวนอุปกรณ์แต่ละแบรนด์ (Top 10)</h2>
@@ -323,36 +417,72 @@ export function DashboardPage() {
 
         {/* Bottom tables */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Low stock */}
+          {/* Borrow summary by brand (expandable) */}
           <div className="rounded-xl border bg-white shadow-sm">
             <div className="flex items-center justify-between border-b px-5 py-3">
-              <h2 className="text-sm font-semibold">Stock ต่ำกว่ากำหนด</h2>
-              <Badge variant="destructive" className="text-xs">
-                {lowStock.length} รายการ
+              <h2 className="text-sm font-semibold">สรุปการยืมตามแบรนด์ (เดือนนี้)</h2>
+              <Badge className="bg-teal-100 text-xs text-teal-700">
+                {timeline?.totalBrands ?? 0} แบรนด์
               </Badge>
             </div>
-            {lowStock.length === 0 ? (
+            {!timeline || timeline.brandSummary.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                ไม่มีรายการ stock ต่ำ
+                ยังไม่มีการยืมในเดือนนี้
               </p>
             ) : (
               <div className="divide-y">
-                {lowStock.map((item) => (
-                  <div key={item.key} className="flex items-center justify-between px-5 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-mono text-xs font-medium">
-                        {item.materialCode ?? item.modelCode}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {item.brandName} · {item.siteCode}
-                      </p>
+                {timeline.brandSummary.map((b) => {
+                  const open = expandedBrands.has(b.brand);
+                  return (
+                    <div key={b.brand}>
+                      <button
+                        type="button"
+                        onClick={() => toggleBrand(b.brand)}
+                        className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors hover:bg-muted/30"
+                      >
+                        <div className="flex items-center gap-2">
+                          {open ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span className="text-sm font-medium">{b.brand}</span>
+                        </div>
+                        <span className="text-sm font-bold text-teal-600">{b.total} ตัว</span>
+                      </button>
+                      {open && (
+                        <div className="space-y-2 bg-muted/20 px-5 py-3 text-xs">
+                          <div>
+                            <p className="mb-1 font-semibold text-muted-foreground">ผู้ยืม</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {b.borrowers.map((x) => (
+                                <span
+                                  key={x.name}
+                                  className="rounded-full bg-white px-2 py-0.5 ring-1 ring-gray-200"
+                                >
+                                  {x.name} · {x.count}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="mb-1 font-semibold text-muted-foreground">Site ที่ยืม</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {b.sites.map((x) => (
+                                <span
+                                  key={x.site}
+                                  className="rounded-full bg-white px-2 py-0.5 font-mono ring-1 ring-gray-200"
+                                >
+                                  {x.site} · {x.count}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="ml-4 text-right">
-                      <p className="text-sm font-bold text-red-500">{item.count}</p>
-                      <p className="text-xs text-muted-foreground">min {item.minStock}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
